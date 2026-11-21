@@ -51,6 +51,35 @@ yarn pm2 save
 - **Une seule instance** par session WhatsApp (sinon déconnexions en boucle) : ne lance pas aussi `yarn dev` pendant que pm2 tourne.
 - Si WhatsApp déconnecte la session (401), le bot supprime `auth/` et réaffiche un QR / code (visible avec `yarn logs`).
 
+## Équité : l'hébergeur du bot peut-il voir les rôles ?
+
+Par défaut (`ROLE_DELIVERY=image`), chaque joueur reçoit une **carte image à vue unique** :
+- elle ne peut être ouverte qu'**une seule fois**, sur le téléphone du joueur (pas sur WhatsApp Web) ;
+- l'expéditeur, donc le téléphone du bot, **ne peut pas la rouvrir** ;
+- la conversation privée est ensuite **effacée côté bot** (`WIPE_DM_CHAT=true`) : pas d'aperçu dans la liste des discussions ;
+- le bot n'écrit jamais les rôles dans ses logs.
+
+Limites honnêtes : celui qui contrôle le serveur et le code pourrait toujours modifier le programme pour afficher les rôles.
+La protection couvre ce que l'on voit sur le téléphone du bot, pas un hébergeur malveillant.
+Conseils : utilise un **numéro dédié** au bot (pas ton WhatsApp personnel) et joue avec ton compte habituel.
+
+**Vérifie avant la première partie** : tape `/imposteur test` avec ton compte joueur (la carte arrive en privé), puis regarde
+sur le téléphone du bot que le contenu n'est pas lisible.
+Les cartes utilisent des polices système : sur un serveur minimal, installe-en une (`sudo apt install fonts-dejavu-core`).
+`ROLE_DELIVERY=text` désactive les cartes (rôles visibles par l'hébergeur).
+
+## Déroulement (6 phases avec décomptes)
+
+1. **Salle d'attente** : rappels à 60 s, 30 s, 10 s ; démarrage immédiat si la salle est pleine.
+2. **Distribution** : barre de progression modifiée en direct, joueur par joueur ; signalement des envois échoués.
+3. **Indices** : ordre de passage annoncé, « C'est à @x » + « Ensuite : @y », décompte (20 / 10 / 5 s),
+   chaque indice est annoncé aussitôt, les oublis sont signalés, récap à la fin de chaque tour ; dire son propre mot secret est refusé.
+4. **Débat** : récap de tous les indices, rappels de temps.
+5. **Vote** : chaque vote est notifié (sans révéler le suspect), qui reste à voter, fin anticipée quand tout le monde a voté, dépouillement détaillé.
+6. **Verdict** : dernière chance de l'imposteur avec décompte, révélation des mots et récap des indices.
+
+`/imposteur etat` affiche à tout moment la phase, le temps restant et qui doit parler / voter.
+
 ## Commandes du jeu (dans un groupe)
 
 | Commande | Effet |
@@ -61,12 +90,14 @@ yarn pm2 save
 | `/imposteur join` | rejoindre |
 | `/imposteur go` | lancer (lanceur) |
 | `/imposteur mot` | renvoyer son rôle (utilisable aussi en privé) |
+| `/imposteur etat` | phase en cours, temps restant, joueurs |
+| `/imposteur test` | t'envoie une carte de test |
 | `/imposteur vote` | passer au vote (lanceur) |
 | `/imposteur stop` | annuler (lanceur) |
 | `/imposteur top` | classement |
 | `/imposteur aide` | règles |
 
-Raccourcis : `/join` `/go` `/mot` `/vote` `/stop` `/top` `/aide` `/mode`.
+Raccourcis : `/join` `/go` `/mot` `/etat` `/vote` `/stop` `/top` `/test` `/aide` `/mode`.
 
 Les réglages du jeu (durées, nombre de joueurs, mots) sont en haut de `index.js`.
 Le classement est en mémoire : il repart à zéro au redémarrage.

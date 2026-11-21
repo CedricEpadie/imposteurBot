@@ -6,6 +6,10 @@
 //  • proche    : l’imposteur reçoit un mot VOISIN (ex. « koki » au lieu de « ndolé ») et ne sait pas
 //    qu’il est l’imposteur ! Il doit s’en rendre compte grâce aux indices des autres.
 //
+// ÉQUITÉ : les rôles sont envoyés sous forme de carte image « à vue unique ». Celui qui héberge le bot
+// ne peut pas la rouvrir depuis le téléphone du bot, et la conversation privée est ensuite effacée
+// côté bot (voir ROLE_DELIVERY et WIPE_DM_CHAT).
+//
 // Commandes (dans un groupe) :
 //  /imposteur                      → ouvre une partie (mode classique)
 //  /imposteur proche               → ouvre une partie en mode « mot proche »
@@ -13,11 +17,13 @@
 //  /imposteur join                 → rejoindre
 //  /imposteur go                   → lancer (lanceur) — sinon lancement auto après le délai
 //  /imposteur mot                  → renvoyer son rôle (aussi utilisable en PRIVÉ avec le bot)
+//  /imposteur etat                 → phase en cours, temps restant, joueurs
 //  /imposteur vote                 → passer au vote (lanceur)
 //  /imposteur stop                 → annuler la partie (lanceur)
 //  /imposteur top                  → classement des victoires
+//  /imposteur test                 → t’envoie une carte de test (pour vérifier l’affichage)
 //  /imposteur aide                 → règles
-// Raccourcis : /join /go /mot /vote /stop /top /aide /mode
+// Raccourcis : /join /go /mot /etat /vote /stop /top /test /aide /mode
 
 import fs from 'node:fs'
 import makeWASocket, {
@@ -34,21 +40,33 @@ try {
   process.loadEnvFile('.env') // Node ≥ 20.12 ; sans fichier .env, on utilise les variables d’environnement de l’hébergeur
 } catch {}
 
+let sharp = null
+try {
+  sharp = (await import('sharp')).default
+} catch (e) {
+  console.warn('[imposteur] sharp indisponible :', e.message)
+}
+
 // ───────── Configuration (variables d’environnement) ─────────
 const P = process.env.PREFIX || '/'
 const AUTH_DIR = process.env.AUTH_DIR || './auth' // dossier de session : à placer sur un volume persistant
 const PAIRING_NUMBER = (process.env.PAIRING_NUMBER || '').replace(/\D/g, '') // ex. 237600000000 → connexion par code au lieu du QR
+// image : carte à vue unique (équitable, recommandé) — text : message texte classique (visible par l’hébergeur du bot)
+const ROLE_DELIVERY = (process.env.ROLE_DELIVERY || 'image').toLowerCase() === 'text' ? 'text' : 'image'
+// Efface la conversation privée côté bot juste après l’envoi d’un rôle
+const WIPE_DM_CHAT = (process.env.WIPE_DM_CHAT || 'true').toLowerCase() !== 'false'
 
 // ───────── Réglages du jeu (modifie à ta guise) ─────────
 const MIN_PLAYERS = 3
 const MAX_PLAYERS = 10
 const LOBBY_SECONDS = 90 // temps pour rejoindre avant le lancement automatique
+const READ_SECONDS = 20 // temps pour lire son rôle avant les indices
 const CLUE_ROUNDS = 2 // nombre de tours d’indices
 const CLUE_SECONDS = 40 // temps pour donner son indice
 const DISCUSS_SECONDS = 60 // discussion libre avant le vote
 const VOTE_SECONDS = 45
 const GUESS_SECONDS = 30 // dernière chance de l’imposteur démasqué
-const DM_DELAY_SECONDS = 5 // pause entre deux messages privés (limite les risques de blocage)
+const DM_DELAY_SECONDS = 5 // pause entre deux envois privés (limite les risques de blocage)
 
 // Chaque catégorie contient des paires de mots proches. Mode classique : on tire un des deux mots.
 // Mode « proche » : les civils reçoivent un mot et l’imposteur l’autre.
@@ -132,13 +150,40 @@ const MODE_LABEL = {
   proche: '🎭 Mot proche : l’imposteur reçoit un mot voisin… et ne sait pas qu’il est l’imposteur !',
 }
 const MODE_ALIASES = { classique: 'classique', classic: 'classique', proche: 'proche', undercover: 'proche' }
-const SHORTCUTS = new Set(['join', 'go', 'mot', 'vote', 'stop', 'top', 'aide', 'mode'])
+const SHORTCUTS = new Set(['join', 'go', 'mot', 'etat', 'vote', 'stop', 'top', 'test', 'aide', 'mode'])
+
+const PHASES = {
+  lobby: [1, 'SALLE D’ATTENTE'],
+  dm: [2, 'DISTRIBUTION DES RÔLES'],
+  clues: [3, 'INDICES'],
+  discuss: [4, 'DÉBAT'],
+  vote: [5, 'VOTE'],
+  verdict: [6, 'VERDICT'],
+}
+const header = (k) => `━━━━━━━━━━━━━━\n*PHASE ${PHASES[k][0]}/6 · ${PHASES[k][1]}*\n━━━━━━━━━━━━━━\n\n`
+const phaseName = (g) => {
+  const map = {
+    lobby: 'lobby',
+    dm: 'dm',
+    ready: 'dm',
+    clues: 'clues',
+    between: 'clues',
+    discuss: 'discuss',
+    vote: 'vote',
+    counting: 'vote',
+    guess: 'verdict',
+    verdict: 'verdict',
+  }
+  const k = map[g.phase] || 'lobby'
+  return `Phase ${PHASES[k][0]}/6 · ${PHASES[k][1].toLowerCase()}`
+}
 
 // ───────── État (en mémoire : remis à zéro au redémarrage du bot) ─────────
 const games = new Map() // une partie par groupe (clé = jid du groupe)
 const wins = new Map() // victoires : groupe → Map(num → { jid, n })
 const usedPairs = new Map() // pour ne pas répéter les paires de mots
 const sentTexts = [] // derniers textes envoyés par le bot (évite de les prendre pour des indices)
+const cooldowns = new Map() // anti-spam des renvois de rôle / cartes de test
 
 let sock = null
 
@@ -167,6 +212,15 @@ const norm = (s) =>
     .replace(/[^a-z0-9 ]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+const esc = (s) =>
+  String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+const progressBar = (done, total) => '▰'.repeat(done) + '▱'.repeat(total - done)
+const onCooldown = (id, seconds) => {
+  const now = Date.now()
+  if ((cooldowns.get(id) || 0) > now) return true
+  cooldowns.set(id, now + seconds * 1000)
+  return false
+}
 
 // Identité de l’expéditeur : WhatsApp peut fournir un jid « numéro » et/ou un jid « LID ».
 // On garde les deux pour reconnaître la même personne en groupe comme en privé.
@@ -200,49 +254,117 @@ const findPlayer = (g, ids) => g.players.find((p) => hasId(p, ids))
 const jidsOf = (g) => g.players.map((p) => p.jid)
 const listOf = (g) => g.players.map((p) => tag(p.jid)).join(', ')
 
+// ───────── Minuteries (compte à rebours avec rappels) ─────────
+const stopTimers = (g) => {
+  clearTimeout(g.timer)
+  for (const t of g.ticks || []) clearTimeout(t)
+  g.ticks = []
+  g.deadline = 0
+}
+
+// Lance la fin de phase dans `seconds` s ; `marks` = secondes restantes auxquelles `tick(m)` est appelé.
+const phaseTimer = (g, seconds, onEnd, { marks = [], tick } = {}) => {
+  stopTimers(g)
+  const phase = g.phase
+  g.deadline = Date.now() + seconds * 1000
+  for (const m of marks) {
+    if (m >= seconds || !tick) continue
+    g.ticks.push(
+      setTimeout(() => {
+        if (games.get(g.key) !== g || g.phase !== phase) return
+        Promise.resolve().then(() => tick(m)).catch((e) => console.error('[imposteur]', e))
+      }, (seconds - m) * 1000)
+    )
+  }
+  g.timer = setTimeout(() => {
+    Promise.resolve().then(onEnd).catch((e) => console.error('[imposteur]', e))
+  }, seconds * 1000)
+}
+
 // ───────── Envoi ─────────
 const say = async (chat, text, mentions = []) => {
   sentTexts.push(text)
   if (sentTexts.length > 40) sentTexts.shift()
   try {
-    await sock.sendMessage(chat, { text, mentions })
+    return await sock.sendMessage(chat, { text, mentions })
   } catch (e) {
     console.error('[imposteur] envoi impossible :', e.message)
+    return null
   }
 }
 
-const dm = async (jid, text) => {
+const editMsg = async (chat, sent, text, mentions = []) => {
+  if (!sent?.key) return
   try {
-    await sock.sendMessage(jid, { text })
-    return true
-  } catch (e) {
-    console.error('[imposteur] message privé impossible :', e.message)
-    return false
+    await sock.sendMessage(chat, { text, edit: sent.key, mentions })
+  } catch {
+    /* l’édition est un plus : on ignore les erreurs */
   }
 }
 
-const later = (g, seconds, fn) => {
-  clearTimeout(g.timer)
-  g.timer = setTimeout(() => {
-    Promise.resolve().then(fn).catch((e) => console.error('[imposteur]', e))
-  }, seconds * 1000)
+const typing = async (chat, ms) => {
+  try {
+    await sock.sendPresenceUpdate('composing', chat)
+    await sleep(ms)
+    await sock.sendPresenceUpdate('paused', chat)
+  } catch {}
 }
 
-// ───────── Mots et rôles ─────────
-// Retourne [catégorie, mot des civils, mot proche pour l’imposteur (mode « proche »)]
-const pickPair = (key) => {
-  const all = Object.entries(PAIRS).flatMap(([cat, pairs]) => pairs.map(([a, b]) => ({ cat, a, b, id: `${cat}|${a}` })))
-  let used = usedPairs.get(key) || new Set()
-  if (used.size >= all.length) used = new Set()
-  const chosen = pick(all.filter((x) => !used.has(x.id)))
-  used.add(chosen.id)
-  usedPairs.set(key, used)
-  return Math.random() < 0.5 ? [chosen.cat, chosen.a, chosen.b] : [chosen.cat, chosen.b, chosen.a]
+// ───────── Cartes de rôle (image à vue unique) ─────────
+const renderCard = async ({ title, color, category, big, lines }) => {
+  if (!sharp) throw new Error('le module « sharp » n’est pas installé')
+  const size = Math.max(34, Math.min(84, Math.floor(820 / (Math.max(big.length, 1) * 0.6))))
+  const font = 'DejaVu Sans, Arial, Helvetica, sans-serif'
+  const footer = lines
+    .map(
+      (l, i) =>
+        `<text x="450" y="${470 + i * 44}" text-anchor="middle" font-family="${font}" font-size="28" fill="#c7cdd6">${esc(l)}</text>`
+    )
+    .join('')
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600">
+  <rect width="900" height="600" rx="36" fill="#14181f"/>
+  <rect x="24" y="24" width="852" height="552" rx="26" fill="none" stroke="${color}" stroke-width="4"/>
+  <text x="450" y="130" text-anchor="middle" font-family="${font}" font-size="46" font-weight="bold" fill="${color}">${esc(title)}</text>
+  <text x="450" y="205" text-anchor="middle" font-family="${font}" font-size="30" fill="#9aa4b2">${esc(category)}</text>
+  <text x="450" y="355" text-anchor="middle" font-family="${font}" font-size="${size}" font-weight="bold" fill="#ffffff">${esc(big)}</text>
+  ${footer}
+</svg>`
+  return sharp(Buffer.from(svg)).png().toBuffer()
 }
 
+const plainCategory = (cat) => 'Catégorie : ' + String(cat).replace(/[^\p{L}\p{N}\s'’-]/gu, '').trim()
+
+const cardSpec = (g, isImposter) => {
+  const category = plainCategory(g.category)
+  if (g.mode === 'proche') {
+    return {
+      title: 'TON MOT SECRET',
+      color: '#f0b429',
+      category,
+      big: isImposter ? g.closeWord : g.word,
+      lines: ['Donne un indice en un seul mot.', 'Un joueur a un mot différent : reste discret.'],
+    }
+  }
+  return isImposter
+    ? {
+        title: 'TU ES L’IMPOSTEUR',
+        color: '#ff5d5d',
+        category,
+        big: 'Mot inconnu',
+        lines: ['Bluffe : donne des indices crédibles.', 'Démasqué ? Devine le mot pour gagner !'],
+      }
+    : {
+        title: 'TU ES CIVIL',
+        color: '#3ddc84',
+        category,
+        big: g.word,
+        lines: ['Donne un indice en un seul mot,', 'sans dire le mot secret.'],
+      }
+}
+
+// Version texte (ROLE_DELIVERY=text)
 const roleText = (g, isImposter) => {
   if (g.mode === 'proche') {
-    // Même message pour tout le monde : personne ne sait s’il a le mot des civils ou le mot proche
     return (
       `🎭 *Mode MOT PROCHE*\n\nCatégorie : ${g.category}\nTon mot secret : *${isImposter ? g.closeWord : g.word}*\n\n` +
       `Donne des indices en *un seul mot*, sans dire ton mot.\n` +
@@ -259,23 +381,93 @@ const roleText = (g, isImposter) => {
         `sans trop aider l’imposteur qui se cache parmi vous.`
 }
 
+// Efface la conversation privée côté bot (le téléphone du bot n’en garde pas de trace)
+const wipeChat = async (jid, sent) => {
+  if (!WIPE_DM_CHAT || !sent?.key) return
+  try {
+    await sock.chatModify(
+      { delete: true, lastMessages: [{ key: sent.key, messageTimestamp: Number(sent.messageTimestamp) }] },
+      jid
+    )
+  } catch (e) {
+    console.warn('[imposteur] effacement de la conversation impossible :', e.message)
+  }
+}
+
+// Envoie une carte (ou un texte) à `jid`. Ne journalise jamais le contenu du rôle.
+const sendCard = async (jid, spec, fallbackText) => {
+  try {
+    let sent
+    if (ROLE_DELIVERY === 'image') {
+      sent = await sock.sendMessage(jid, { image: await renderCard(spec), viewOnce: true })
+    } else {
+      sent = await sock.sendMessage(jid, { text: fallbackText })
+    }
+    await wipeChat(jid, sent)
+    return true
+  } catch (e) {
+    console.error('[imposteur] envoi privé impossible :', e.message)
+    return false
+  }
+}
+
+const deliverRole = (g, p) => {
+  const isImp = p === g.imposter
+  return sendCard(p.dm, cardSpec(g, isImp), roleText(g, isImp))
+}
+
+// ───────── Mots ─────────
+// Retourne [catégorie, mot des civils, mot proche pour l’imposteur (mode « proche »)]
+const pickPair = (key) => {
+  const all = Object.entries(PAIRS).flatMap(([cat, pairs]) => pairs.map(([a, b]) => ({ cat, a, b, id: `${cat}|${a}` })))
+  let used = usedPairs.get(key) || new Set()
+  if (used.size >= all.length) used = new Set()
+  const chosen = pick(all.filter((x) => !used.has(x.id)))
+  used.add(chosen.id)
+  usedPairs.set(key, used)
+  return Math.random() < 0.5 ? [chosen.cat, chosen.a, chosen.b] : [chosen.cat, chosen.b, chosen.a]
+}
+
+// Mot que ce joueur connaît (pour lui interdire de le dire en indice)
+const ownSecret = (g, p) => {
+  if (p === g.imposter) return g.mode === 'proche' ? g.closeWord : null
+  return g.word
+}
+
+// ───────── Récapitulatifs ─────────
+const clueLines = (g, round) =>
+  g.clues.filter((c) => c.round === round).map((c) => `• ${tag(c.p.jid)} : ${c.text || '…'}`)
+
+const fullRecap = (g) =>
+  g.order
+    .map((p) => {
+      const mine = g.clues.filter((c) => c.p === p).map((c) => c.text || '…')
+      return `• ${tag(p.jid)} : ${mine.length ? mine.join(' → ') : '—'}`
+    })
+    .join('\n')
+
 // ───────── Déroulement de la partie ─────────
-const beginGame = async (key) => {
+const beginGame = async (key, manual = false) => {
   const g = games.get(key)
   if (!g || g.phase !== 'lobby') return
-  clearTimeout(g.timer)
 
   if (g.players.length < MIN_PLAYERS) {
+    if (manual) {
+      return say(key, `⛔ Il manque encore *${MIN_PLAYERS - g.players.length}* joueur(s) (${g.players.length}/${MIN_PLAYERS} minimum).`)
+    }
+    stopTimers(g)
     games.delete(key)
     return say(key, `😕 Pas assez de joueurs (${g.players.length}/${MIN_PLAYERS} minimum). Partie annulée.`)
   }
 
+  stopTimers(g)
   g.phase = 'dm'
   const [category, word, closeWord] = pickPair(key)
   g.category = category
   g.word = word // mot des civils
   g.closeWord = closeWord // mot proche de l’imposteur (mode « proche » uniquement)
   const secretLabel = g.mode === 'proche' ? 'mot secret' : 'rôle'
+  const secretPlural = g.mode === 'proche' ? 'mots secrets' : 'rôles'
   g.imposter = pick(g.players)
   g.order = shuffle(g.players)
   g.turns = []
@@ -283,31 +475,51 @@ const beginGame = async (key) => {
   g.turnIdx = 0
   g.clues = []
 
-  await say(
-    key,
-    `🕵️ *LA PARTIE COMMENCE !*\n\n👥 ${g.players.length} joueurs : ${listOf(g)}\n🏷️ Catégorie : ${g.category}\n🎮 Mode : ${MODE_LABEL[g.mode]}\n\n` +
-      `📩 Je vous envoie votre ${secretLabel} en privé (environ ${DM_DELAY_SECONDS} s par joueur, patience).\n` +
-      `💡 Rien reçu ? Écris *${P}imposteur mot* en privé au bot.`,
-    jidsOf(g)
-  )
+  const total = g.players.length
+  const progress = (done, last) =>
+    `${header('dm')}👥 ${total} joueurs : ${listOf(g)}\n🏷️ Catégorie : ${g.category}\n🎮 Mode : ${MODE_LABEL[g.mode]}\n\n` +
+    `📩 Envoi des ${secretPlural} en privé${ROLE_DELIVERY === 'image' ? ' (carte à vue unique 👁️)' : ''}…\n` +
+    `${progressBar(done, total)} ${done}/${total}` +
+    (last ? `\n${last}` : '')
+
+  const first = await say(key, progress(0), jidsOf(g))
 
   const failed = []
+  let done = 0
   for (const p of g.players) {
     if (games.get(key) !== g) return // partie annulée entre-temps
-    const ok = await dm(p.dm, roleText(g, p === g.imposter))
+    const ok = await deliverRole(g, p)
+    done++
     if (!ok) failed.push(p.jid)
-    await sleep(DM_DELAY_SECONDS * 1000)
+    await editMsg(
+      key,
+      first,
+      progress(done, ok ? `✅ ${tag(p.jid)} a reçu son ${secretLabel}` : `⚠️ ${tag(p.jid)} : envoi impossible`),
+      jidsOf(g)
+    )
+    if (done < total) await sleep(DM_DELAY_SECONDS * 1000)
   }
   if (games.get(key) !== g) return
 
   if (failed.length) {
     await say(
       key,
-      `⚠️ Je n’ai pas pu écrire en privé à ${failed.map(tag).join(', ')}. Écrivez-moi *${P}imposteur mot* en privé pour recevoir votre ${secretLabel}.`,
+      `⚠️ Je n’ai pas pu écrire en privé à ${failed.map(tag).join(', ')}. Écrivez-moi d’abord en privé (un simple « salut »), puis tapez *${P}imposteur mot* pour recevoir votre ${secretLabel}.`,
       failed
     )
   }
-  return askTurn(key)
+
+  g.phase = 'ready'
+  await say(
+    key,
+    `📖 *Lisez bien votre ${secretLabel} !*\n` +
+      (ROLE_DELIVERY === 'image' ? `La carte ne s’ouvre qu’*UNE fois* : ouvrez-la sur votre téléphone.\n` : '') +
+      `Rien reçu ? *${P}imposteur mot* en privé au bot.\n\n🎬 Les indices commencent dans *${READ_SECONDS} s*…`
+  )
+  phaseTimer(g, READ_SECONDS, () => askTurn(key), {
+    marks: [10, 5],
+    tick: (m) => say(key, `⏳ Début des indices dans *${m} s*…`),
+  })
 }
 
 const askTurn = async (key) => {
@@ -318,26 +530,65 @@ const askTurn = async (key) => {
 
   g.phase = 'clues'
   const n = g.order.length
-  const head = g.turnIdx % n === 0 ? `🔁 *Tour ${Math.floor(g.turnIdx / n) + 1}/${CLUE_ROUNDS}*\n\n` : ''
-  later(g, CLUE_SECONDS, () => takeClue(key, null))
-  return say(key, `${head}🗣️ C’est à ${tag(t.jid)} ! Donne ton indice en *un seul mot* (${CLUE_SECONDS} s).`, [t.jid])
+  const round = Math.floor(g.turnIdx / n) + 1
+  const pos = (g.turnIdx % n) + 1
+
+  let head = ''
+  if (g.turnIdx === 0) {
+    head =
+      header('clues') +
+      `Chacun donne *un seul mot* en rapport avec son mot secret, sans le dire.\n` +
+      `🔁 ${CLUE_ROUNDS} tour(s) • ⏱️ ${CLUE_SECONDS} s par joueur\n\n` +
+      `📋 *Ordre de passage*\n${g.order.map((p, i) => `${i + 1}. ${tag(p.jid)}`).join('\n')}\n\n`
+  } else if (pos === 1) {
+    head = `🔁 *Tour ${round}/${CLUE_ROUNDS}* — on repart dans le même ordre !\n\n`
+  }
+  const next = g.turns[g.turnIdx + 1]
+  const mentions = [t.jid, ...(g.turnIdx === 0 ? jidsOf(g) : [])]
+
+  phaseTimer(g, CLUE_SECONDS, () => takeClue(key, null), {
+    marks: [20, 10, 5],
+    tick: (m) => say(key, `⏳ ${tag(t.jid)} : plus que *${m} s* pour donner ton indice !`, [t.jid]),
+  })
+  return say(
+    key,
+    `${head}🗣️ *Tour ${round}/${CLUE_ROUNDS} • joueur ${pos}/${n}*\nC’est à ${tag(t.jid)} ! Donne ton indice en *un seul mot* (${CLUE_SECONDS} s).` +
+      (next ? `\n➡️ Ensuite : ${tag(next.jid)}` : ''),
+    mentions
+  )
 }
 
-const takeClue = async (key, text) => {
+const takeClue = async (key, text, multiWord = false) => {
   const g = games.get(key)
   if (!g || g.phase !== 'clues') return
-  clearTimeout(g.timer)
+  stopTimers(g)
+  g.phase = 'between' // le temps d’annoncer l’indice, aucun autre indice n’est accepté
 
   const n = g.order.length
   const t = g.turns[g.turnIdx]
-  g.clues.push({ round: Math.floor(g.turnIdx / n) + 1, jid: t.jid, text: text || '…' })
+  const round = Math.floor(g.turnIdx / n) + 1
+  const pos = (g.turnIdx % n) + 1
+  g.clues.push({ round, p: t, text: text || null })
   g.turnIdx++
 
+  await say(
+    key,
+    text
+      ? `✅ ${tag(t.jid)} a donné son indice : *${text}* (${pos}/${n})` + (multiWord ? `\n(seul le 1er mot est retenu)` : '')
+      : `⏱️ ${tag(t.jid)} n’a rien dit à temps : indice passé… 🐢 (${pos}/${n})`,
+    [t.jid]
+  )
+  if (games.get(key) !== g) return
+
   if (g.turnIdx % n === 0) {
-    const round = g.turnIdx / n
-    const lines = g.clues.filter((c) => c.round === round).map((c) => `• ${tag(c.jid)} : ${c.text}`)
-    await say(key, `📝 *Indices du tour ${round}*\n${lines.join('\n')}`, jidsOf(g))
+    await sleep(1000)
+    if (games.get(key) !== g) return
+    await say(key, `📝 *Indices du tour ${round}*\n${clueLines(g, round).join('\n')}`, jidsOf(g))
+    if (games.get(key) !== g) return
   }
+
+  await sleep(1500)
+  if (games.get(key) !== g) return
   return askTurn(key)
 }
 
@@ -345,29 +596,45 @@ const startDiscuss = async (key) => {
   const g = games.get(key)
   if (!g) return
   g.phase = 'discuss'
-  later(g, DISCUSS_SECONDS, () => startVote(key))
-  return say(
-    key,
-    `💬 *DISCUSSION LIBRE* (${DISCUSS_SECONDS} s)\n\nQui a donné un indice louche ? Défendez-vous, accusez-vous !\n` +
-      `Le lanceur peut taper *${P}imposteur vote* pour passer au vote.`
-  )
-}
-
-const startVote = async (key) => {
-  const g = games.get(key)
-  if (!g) return
-  g.phase = 'vote'
-  g.votes = new Map() // votant (joueur) → suspect (joueur)
-  later(g, VOTE_SECONDS / 2, async () => {
-    const gg = games.get(key)
-    if (!gg || gg.phase !== 'vote') return
-    later(gg, VOTE_SECONDS / 2, () => endVote(key))
-    await say(key, `⏳ Plus que *${Math.round(VOTE_SECONDS / 2)} s* ! ${gg.votes.size}/${gg.players.length} vote(s).`)
+  phaseTimer(g, DISCUSS_SECONDS, () => startVote(key), {
+    marks: [30, 10, 5],
+    tick: (m) =>
+      say(key, m > 10 ? `⏳ Il reste *${m} s* de débat… Qui est suspect ?` : `🚨 Le vote commence dans *${m} s* !`),
   })
   return say(
     key,
-    `🗳️ *VOTE !* Qui est l’imposteur ?\n\n${listOf(g)}\n\n` +
-      `Mentionne (@) ton suspect ou réponds à son message (${VOTE_SECONDS} s). Seuls les joueurs votent, et pas pour eux-mêmes. Le dernier vote compte.`,
+    `${header('discuss')}📋 *Récapitulatif des indices*\n${fullRecap(g)}\n\n` +
+      `💬 Qui a donné un indice louche ? Défendez-vous, accusez-vous !\n` +
+      `⏱️ *${DISCUSS_SECONDS} s* de débat. Le lanceur peut taper *${P}imposteur vote* pour voter tout de suite.`,
+    jidsOf(g)
+  )
+}
+
+const pendingVoters = (g) => g.players.filter((p) => !g.votes.has(p))
+
+const startVote = async (key) => {
+  const g = games.get(key)
+  if (!g || g.phase !== 'discuss') return
+  stopTimers(g)
+  g.phase = 'vote'
+  g.votes = new Map() // votant (joueur) → suspect (joueur)
+  phaseTimer(g, VOTE_SECONDS, () => endVote(key), {
+    marks: [30, 15, 5],
+    tick: (m) => {
+      const waiting = pendingVoters(g)
+      return say(
+        key,
+        `⏳ *${m} s* — ${g.votes.size}/${g.players.length} vote(s).\n🕐 En attente : ${waiting.map((p) => tag(p.jid)).join(', ')}`,
+        waiting.map((p) => p.jid)
+      )
+    },
+  })
+  return say(
+    key,
+    `${header('vote')}🗳️ *Qui est l’imposteur ?*\n\n${listOf(g)}\n\n` +
+      `👉 *Mentionne (@)* ton suspect ou *réponds à son message*.\n` +
+      `Pas de vote pour soi-même • le dernier vote compte • les votes restent secrets jusqu’au dépouillement.\n` +
+      `⏱️ *${VOTE_SECONDS} s* (le vote s’arrête dès que tout le monde a voté).`,
     jidsOf(g)
   )
 }
@@ -375,7 +642,12 @@ const startVote = async (key) => {
 const endVote = async (key) => {
   const g = games.get(key)
   if (!g || g.phase !== 'vote') return
-  clearTimeout(g.timer)
+  stopTimers(g)
+  g.phase = 'counting'
+
+  await say(key, `🔔 *Le vote est clos !*\n🥁 Dépouillement en cours…`)
+  await typing(key, 2500)
+  if (games.get(key) !== g) return
 
   const counts = new Map()
   for (const target of g.votes.values()) counts.set(target, (counts.get(target) || 0) + 1)
@@ -385,23 +657,38 @@ const endVote = async (key) => {
     return conclude(key, 'imposteur', '🐔 Personne n’a osé voter : l’imposteur passe entre les mailles du filet.')
   }
 
-  const lines = ranking.map(([p, c]) => `• ${tag(p.jid)} — ${c} vote(s)`).join('\n')
+  const detail = [...g.votes.entries()].map(([voter, target]) => `• ${tag(voter.jid)} ➜ ${tag(target.jid)}`).join('\n')
+  const lines = ranking.map(([p, c]) => `${'🟥'.repeat(c)} ${tag(p.jid)} — ${c} vote(s)`).join('\n')
+  const abstainers = pendingVoters(g)
   const [top, topCount] = ranking[0]
   const tie = ranking.length > 1 && ranking[1][1] === topCount
 
+  await say(
+    key,
+    `📊 *Résultat du vote*\n\n${lines}\n\n🔍 *Détail*\n${detail}` +
+      (abstainers.length ? `\n\n🙈 N’ont pas voté : ${abstainers.map((p) => tag(p.jid)).join(', ')}` : ''),
+    jidsOf(g)
+  )
+  await sleep(2500)
+  if (games.get(key) !== g) return
+
   if (tie || top !== g.imposter) {
     const why = tie
-      ? `⚖️ Égalité des votes, personne n’est démasqué.`
+      ? `⚖️ Égalité des votes : personne n’est démasqué.`
       : `❌ Le groupe a accusé ${tag(top.jid)}… mais c’était un civil !`
-    return conclude(key, 'imposteur', `📊 *Votes*\n${lines}\n\n${why}`, ranking.map(([p]) => p.jid))
+    return conclude(key, 'imposteur', why, ranking.map(([p]) => p.jid))
   }
 
   g.phase = 'guess'
-  later(g, GUESS_SECONDS, () => conclude(key, 'civils', '⏱️ Le temps est écoulé : l’imposteur n’a pas trouvé le mot.'))
+  phaseTimer(g, GUESS_SECONDS, () => conclude(key, 'civils', '⏱️ Le temps est écoulé : l’imposteur n’a pas trouvé le mot.'), {
+    marks: [20, 10, 5],
+    tick: (m) => say(key, `⏳ ${tag(g.imposter.jid)} : plus que *${m} s* pour deviner le mot !`, [g.imposter.jid]),
+  })
   return say(
     key,
-    `📊 *Votes*\n${lines}\n\n🎯 ${tag(top.jid)} est bien l’imposteur !\n` +
-      `Dernière chance : devine le *mot ${g.mode === 'proche' ? 'des civils' : 'secret'}* (catégorie : ${g.category}) en un seul message. Tu as ${GUESS_SECONDS} s.`,
+    `🎯 *${tag(top.jid)} est bien l’imposteur !*\n\n` +
+      `${header('verdict')}Dernière chance : devine le *mot ${g.mode === 'proche' ? 'des civils' : 'secret'}* ` +
+      `(catégorie : ${g.category}) en *un seul message*.\n⏱️ Tu as *${GUESS_SECONDS} s*. S’il le trouve, il vole la victoire !`,
     [top.jid]
   )
 }
@@ -409,7 +696,7 @@ const endVote = async (key) => {
 const conclude = async (key, winner, reason, extraMentions = []) => {
   const g = games.get(key)
   if (!g) return
-  clearTimeout(g.timer)
+  stopTimers(g)
   games.delete(key)
 
   const board = wins.get(key) || new Map()
@@ -423,6 +710,7 @@ const conclude = async (key, winner, reason, extraMentions = []) => {
   wins.set(key, board)
 
   const imp = g.imposter
+  await typing(key, 1500)
   return say(
     key,
     `🏁 *FIN DE PARTIE*\n\n` +
@@ -431,8 +719,9 @@ const conclude = async (key, winner, reason, extraMentions = []) => {
       (g.mode === 'proche'
         ? `🔑 Mot des civils : *${g.word}* (${g.category})\n🎭 Mot de l’imposteur : *${g.closeWord}*`
         : `🔑 Mot secret : *${g.word}* (${g.category})`) +
-      `\n\nRejouer : *${P}imposteur*`,
-    [imp.jid, ...extraMentions]
+      `\n\n📜 *Récap des indices*\n${fullRecap(g)}` +
+      `\n\n🏆 *${P}imposteur top* : classement • Rejouer : *${P}imposteur*`,
+    [imp.jid, ...jidsOf(g), ...extraMentions]
   )
 }
 
@@ -442,16 +731,22 @@ const resendRole = async (chat, isGroup, me) => {
   for (const g of games.values()) {
     if (g.phase !== 'lobby' && g.phase !== 'dm' && findPlayer(g, me.ids)) game = g
   }
-  if (!game) return say(chat, 'Je ne te trouve dans aucune partie en cours.')
+  if (!game) return say(chat, 'Je ne te trouve dans aucune partie en cours (ou les rôles ne sont pas encore distribués).')
+  if (onCooldown(`role:${num(me.jid)}`, 10)) return say(chat, '⏳ Patiente quelques secondes avant de redemander ton rôle.')
   const p = findPlayer(game, me.ids)
-  const text = roleText(game, p === game.imposter)
-  if (!isGroup) return say(chat, text)
-  const ok = await dm(p.dm, text)
-  return say(chat, ok ? '📩 Rôle renvoyé en privé.' : `Impossible de t’écrire en privé : envoie-moi *${P}imposteur mot* en privé.`)
+  const ok = await deliverRole(game, p)
+  if (!isGroup) return ok ? undefined : say(chat, 'Impossible de t’envoyer ton rôle pour le moment.')
+  return say(
+    chat,
+    ok
+      ? `📩 ${tag(me.jid)} : rôle renvoyé en privé.`
+      : `Impossible de t’écrire en privé : envoie-moi d’abord un message en privé, puis *${P}imposteur mot*.`,
+    [me.jid]
+  )
 }
 
 // ───────── Commandes ─────────
-const handleCommand = async (chat, isGroup, me, text, mentioned) => {
+const handleCommand = async (chat, isGroup, me, text) => {
   const [cmdRaw, ...args] = text.slice(P.length).trim().split(/\s+/)
   const cmd = (cmdRaw || '').toLowerCase()
 
@@ -468,6 +763,17 @@ const handleCommand = async (chat, isGroup, me, text, mentioned) => {
   }
 
   if (word === 'mot' || word === 'role' || word === 'rôle') return resendRole(chat, isGroup, me)
+
+  if (word === 'test') {
+    if (onCooldown(`test:${num(me.jid)}`, 30)) return say(chat, '⏳ Un test toutes les 30 secondes, patience.')
+    const ok = await sendCard(
+      me.dm,
+      { title: 'CARTE DE TEST', color: '#4da3ff', category: 'Catégorie : Test', big: 'Ça marche !', lines: ['Si tu lis ce texte,', 'les cartes s’affichent bien.'] },
+      '🧪 Carte de test (mode texte).'
+    )
+    return say(chat, ok ? '🧪 Carte de test envoyée en privé.' : 'Impossible de t’écrire en privé : envoie-moi d’abord un message en privé.')
+  }
+
   if (!isGroup) {
     return say(chat, `🕵️ Ce jeu se joue dans un groupe. Ici, tape *${P}imposteur mot* pour retrouver ton rôle.`)
   }
@@ -481,13 +787,28 @@ const handleCommand = async (chat, isGroup, me, text, mentioned) => {
       chat,
       `🕵️ *L’IMPOSTEUR*\n\n` +
         `1️⃣ *${P}imposteur* ouvre une partie, les autres tapent *${P}imposteur join* (${MIN_PLAYERS} à ${MAX_PLAYERS} joueurs).\n` +
-        `2️⃣ Chacun reçoit *en privé* la catégorie et le mot secret… sauf l’imposteur, qui ne connaît que la catégorie.\n` +
+        `2️⃣ Chacun reçoit *en privé* une carte (à ouvrir une seule fois) avec la catégorie et le mot secret… sauf l’imposteur, qui ne connaît que la catégorie.\n` +
         `🎭 *Variante* : *${P}imposteur proche* → l’imposteur reçoit un mot *voisin* (ex. koki au lieu de ndolé) et ne sait pas qu’il est l’imposteur !\n` +
         `3️⃣ ${CLUE_ROUNDS} tours : chacun son tour donne un indice en *un seul mot*, sans dire le mot.\n` +
-        `4️⃣ Discussion libre, puis vote : mentionnez (@) votre suspect.\n` +
+        `4️⃣ Débat libre, puis vote : mentionnez (@) votre suspect.\n` +
         `5️⃣ Si l’imposteur est démasqué, il peut encore gagner en devinant le mot !\n\n` +
         `📩 Rôle non reçu ? *${P}imposteur mot* en privé au bot.\n` +
+        `📊 *${P}imposteur etat* : où en est la partie\n` +
         `🏆 *${P}imposteur top* : classement des victoires`
+    )
+  }
+
+  if (word === 'etat' || word === 'état' || word === 'statut') {
+    if (!g) return say(chat, `Aucune partie en cours. Lance-en une avec *${P}imposteur*.`)
+    const left = g.deadline ? Math.max(0, Math.ceil((g.deadline - Date.now()) / 1000)) : null
+    return say(
+      chat,
+      `📊 *État de la partie*\n\n🧭 ${phaseName(g)}\n🎮 Mode : ${MODE_LABEL[g.mode]}\n` +
+        `👥 Joueurs (${g.players.length}/${MAX_PLAYERS}) : ${listOf(g)}\n` +
+        (left !== null ? `⏱️ Temps restant pour cette étape : *${left} s*\n` : '') +
+        (g.phase === 'clues' && g.turns[g.turnIdx] ? `🗣️ À parler : ${tag(g.turns[g.turnIdx].jid)}\n` : '') +
+        (g.phase === 'vote' ? `🗳️ Votes : ${g.votes.size}/${g.players.length}\n` : ''),
+      jidsOf(g)
     )
   }
 
@@ -515,18 +836,29 @@ const handleCommand = async (chat, isGroup, me, text, mentioned) => {
     if (findPlayer(g, me.ids)) return say(chat, 'Tu es déjà dans la partie 😉')
     if (g.players.length >= MAX_PLAYERS) return say(chat, `La partie est complète (${MAX_PLAYERS} joueurs max).`)
     g.players.push(toPlayer(me))
-    return say(chat, `✅ ${tag(me.jid)} rejoint la partie ! (${g.players.length}/${MAX_PLAYERS})\n👥 ${listOf(g)}`, jidsOf(g))
+    const missing = MIN_PLAYERS - g.players.length
+    await say(
+      chat,
+      `✅ ${tag(me.jid)} rejoint la partie ! (${g.players.length}/${MAX_PLAYERS})\n👥 ${listOf(g)}\n` +
+        (missing > 0 ? `⏳ Il manque encore *${missing}* joueur(s) pour démarrer.` : `✅ Assez de joueurs ! Le lanceur peut taper *${P}imposteur go*.`),
+      jidsOf(g)
+    )
+    if (g.players.length >= MAX_PLAYERS) {
+      await say(chat, `🚪 Salle complète : on démarre tout de suite !`)
+      beginGame(key).catch((e) => console.error('[imposteur]', e))
+    }
+    return
   }
 
   if (word === 'go' || word === 'start' || word === 'lancer') {
     if (!g || g.phase !== 'lobby') return say(chat, 'Aucune partie en attente de lancement.')
     if (!isStarter) return say(chat, 'Seul le lanceur peut démarrer la partie 😉')
-    beginGame(key).catch((e) => console.error('[imposteur]', e)) // sans attendre : l’envoi des rôles prend du temps
+    beginGame(key, true).catch((e) => console.error('[imposteur]', e)) // sans attendre : l’envoi des rôles prend du temps
     return
   }
 
   if (word === 'vote') {
-    if (!g || g.phase !== 'discuss') return say(chat, 'Le vote n’est possible que pendant la discussion.')
+    if (!g || g.phase !== 'discuss') return say(chat, 'Le vote n’est possible que pendant le débat.')
     if (!isStarter) return say(chat, 'Seul le lanceur peut lancer le vote 😉')
     return startVote(key)
   }
@@ -534,9 +866,9 @@ const handleCommand = async (chat, isGroup, me, text, mentioned) => {
   if (word === 'stop' || word === 'fin') {
     if (!g) return say(chat, 'Aucune partie en cours.')
     if (!isStarter) return say(chat, 'Seul le lanceur peut annuler la partie 😉')
-    clearTimeout(g.timer)
+    stopTimers(g)
     games.delete(key)
-    return say(chat, '🛑 Partie annulée.')
+    return say(chat, '🛑 Partie annulée par le lanceur.')
   }
 
   // Ouverture d’une partie
@@ -554,16 +886,24 @@ const handleCommand = async (chat, isGroup, me, text, mentioned) => {
 
   const mode = MODE_ALIASES[word] || 'classique'
   const starter = toPlayer(me)
-  const created = { phase: 'lobby', mode, starter, players: [starter], timer: null }
+  const created = { key, phase: 'lobby', mode, starter, players: [starter], timer: null, ticks: [], deadline: 0 }
   games.set(key, created)
-  later(created, LOBBY_SECONDS, () => beginGame(key))
+  phaseTimer(created, LOBBY_SECONDS, () => beginGame(key), {
+    marks: [60, 30, 10],
+    tick: (m) =>
+      say(
+        key,
+        `⏳ Départ dans *${m} s* — ${created.players.length}/${MAX_PLAYERS} joueurs (minimum ${MIN_PLAYERS}).\n👥 ${listOf(created)}\n➡️ Rejoindre : *${P}imposteur join*`,
+        jidsOf(created)
+      ),
+  })
   return say(
     chat,
-    `🕵️ *L’IMPOSTEUR*\n\nUn mot secret est donné à tous les joueurs… sauf à l’imposteur !\n` +
+    `${header('lobby')}🕵️ *L’IMPOSTEUR*\nUn mot secret est donné à tous les joueurs… sauf à l’imposteur !\n\n` +
       `🎮 Mode : ${MODE_LABEL[mode]}\n(changer : *${P}imposteur mode proche* ou *classique*)\n\n` +
       `👥 Joueurs (1/${MAX_PLAYERS}) : ${tag(me.jid)}\n` +
       `➡️ Rejoindre : *${P}imposteur join*\n` +
-      `▶️ Lancer : *${P}imposteur go* (lanceur), sinon départ automatique dans ${LOBBY_SECONDS} s (${MIN_PLAYERS} joueurs minimum)\n` +
+      `▶️ Lancer : *${P}imposteur go* (lanceur), sinon départ automatique dans *${LOBBY_SECONDS} s* (${MIN_PLAYERS} joueurs minimum)\n` +
       `📖 Règles : *${P}imposteur aide*`,
     [me.jid]
   )
@@ -577,9 +917,14 @@ const handleGameText = async (chat, me, text, mentioned, quoted) => {
   if (g.phase === 'clues') {
     const t = g.turns[g.turnIdx]
     if (!t || !hasId(t, me.ids)) return
-    const clue = text.split(/\s+/)[0].replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '').slice(0, 30)
+    const words = text.split(/\s+/)
+    const clue = words[0].replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '').slice(0, 30)
     if (!clue) return
-    return takeClue(chat, clue)
+    const secret = ownSecret(g, t)
+    if (secret && (norm(clue) === norm(secret) || (norm(clue).length >= 4 && norm(secret).includes(norm(clue)) && !norm(secret).includes(' ')))) {
+      return say(chat, `⛔ ${tag(t.jid)} : tu ne peux pas dire ton mot secret ! Trouve un autre indice (le temps continue de tourner).`, [t.jid])
+    }
+    return takeClue(chat, clue, words.length > 1)
   }
 
   if (g.phase === 'vote') {
@@ -588,9 +933,20 @@ const handleGameText = async (chat, me, text, mentioned, quoted) => {
     const target = mentioned[0] || quoted
     if (!target) return
     const suspect = g.players.find((p) => p.ids.has(num(target)))
-    if (!suspect || suspect === voter) return
+    if (!suspect) return say(chat, `⛔ ${tag(voter.jid)} : ${tag(target)} ne participe pas à la partie.`, [voter.jid, target])
+    if (suspect === voter) return say(chat, `⛔ ${tag(voter.jid)} : tu ne peux pas voter pour toi-même !`, [voter.jid])
+    const changed = g.votes.has(voter)
     g.votes.set(voter, suspect) // un vote par personne : le dernier compte
-    return
+    const waiting = pendingVoters(g)
+    if (!waiting.length) {
+      await say(chat, `${changed ? '🔄' : '🗳️'} ${tag(voter.jid)} a ${changed ? 'changé son vote' : 'voté'} ! (${g.votes.size}/${g.players.length})\n✅ *Tous les joueurs ont voté !*`, [voter.jid])
+      return endVote(chat)
+    }
+    return say(
+      chat,
+      `${changed ? '🔄' : '🗳️'} ${tag(voter.jid)} a ${changed ? 'changé son vote' : 'voté'} ! (${g.votes.size}/${g.players.length})\n🕐 En attente : ${waiting.map((p) => tag(p.jid)).join(', ')}`,
+      [voter.jid, ...waiting.map((p) => p.jid)]
+    )
   }
 
   if (g.phase === 'guess') {
@@ -598,6 +954,11 @@ const handleGameText = async (chat, me, text, mentioned, quoted) => {
     const guess = norm(text)
     const secret = norm(g.word)
     const ok = guess.length >= 3 && (guess === secret || guess.includes(secret) || secret.split(' ').includes(guess))
+    stopTimers(g)
+    g.phase = 'verdict' // un seul essai
+    await say(chat, `🎯 ${tag(g.imposter.jid)} tente : *${text.slice(0, 40)}*\n🥁 …`, [g.imposter.jid])
+    await typing(chat, 2500)
+    if (games.get(chat) !== g) return
     return conclude(
       chat,
       ok ? 'imposteur' : 'civils',
@@ -626,7 +987,7 @@ const onMessage = async (m) => {
   const mentioned = info?.mentionedJid || []
   const quoted = info?.participant
 
-  if (text.startsWith(P)) return handleCommand(chat, isGroup, me, text, mentioned)
+  if (text.startsWith(P)) return handleCommand(chat, isGroup, me, text)
   if (isGroup) return handleGameText(chat, me, text, mentioned, quoted)
 }
 
@@ -676,7 +1037,7 @@ const start = async () => {
 
     if (connection === 'open') {
       pairingRequested = false
-      console.log(`✅ Bot connecté (${num(current.user?.id)}). Préfixe : ${P}`)
+      console.log(`✅ Bot connecté (${num(current.user?.id)}). Préfixe : ${P} • Rôles : ${ROLE_DELIVERY}`)
     }
 
     if (connection === 'close') {
@@ -707,6 +1068,20 @@ const start = async () => {
 
 process.on('unhandledRejection', (e) => console.error('unhandledRejection :', e))
 process.on('uncaughtException', (e) => console.error('uncaughtException :', e))
+
+// Vérifie au démarrage que les cartes de rôle peuvent être générées
+if (ROLE_DELIVERY === 'image') {
+  try {
+    await renderCard({ title: 'TEST', color: '#ffffff', category: 'Catégorie : Test', big: 'Test', lines: ['ok'] })
+  } catch (e) {
+    console.error(
+      `❌ Impossible de générer les cartes de rôle (${e.message}).\n` +
+        `   Installe les dépendances (yarn install) et des polices (ex. : sudo apt install fonts-dejavu-core),\n` +
+        `   ou mets ROLE_DELIVERY=text dans .env (les rôles seront alors visibles par l’hébergeur du bot).`
+    )
+    process.exit(1)
+  }
+}
 
 start().catch((e) => {
   console.error('Démarrage impossible :', e)
