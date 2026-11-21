@@ -5,7 +5,13 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "dev": "node index.js",
+    "start": "pm2 start ecosystem.config.cjs",
+    "stop": "pm2 stop imposteur",
+    "restart": "pm2 restart imposteur",
+    "delete": "pm2 delete imposteur",
+    "logs": "pm2 logs imposteur",
+    "status": "pm2 status"
   },
   "engines": {
     "node": ">=20.12"
@@ -13,6 +19,7 @@
   "dependencies": {
     "@whiskeysockets/baileys": "latest",
     "pino": "^9.0.0",
+    "pm2": "^5.4.0",
     "qrcode-terminal": "^0.12.0"
   }
 }
