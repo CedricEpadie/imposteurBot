@@ -1,0 +1,18 @@
+{
+  "name": "imposteur-bot",
+  "version": "1.0.0",
+  "description": "Bot WhatsApp du jeu de l'Imposteur (mot secret, indices, vote)",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "latest",
+    "pino": "^9.0.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
