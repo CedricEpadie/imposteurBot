@@ -52,9 +52,9 @@ const P = process.env.PREFIX || '/'
 const AUTH_DIR = process.env.AUTH_DIR || './auth' // dossier de session : à placer sur un volume persistant
 const PAIRING_NUMBER = (process.env.PAIRING_NUMBER || '').replace(/\D/g, '') // ex. 237600000000 → connexion par code au lieu du QR
 // image : carte à vue unique (équitable, recommandé) — text : message texte classique (visible par l’hébergeur du bot)
-//   image = carte à vue unique (équitable) • photo = image normale qui s’efface seule • text = texte qui s’efface seul
-const ROLE_MODE = (process.env.ROLE_DELIVERY || 'image').toLowerCase()
-const ROLE_DELIVERY = ['image', 'photo', 'text'].includes(ROLE_MODE) ? ROLE_MODE : 'image'
+//   photo (défaut) = image normale qui s’efface seule • image = carte à vue unique (non livrée sur certains comptes) • text = texte qui s’efface seul
+const ROLE_MODE = (process.env.ROLE_DELIVERY || 'photo').toLowerCase()
+const ROLE_DELIVERY = ['image', 'photo', 'text'].includes(ROLE_MODE) ? ROLE_MODE : 'photo'
 // Secondes avant suppression automatique du message de rôle (pour tout le monde). 0 = jamais.
 // Par défaut : désactivé en mode « image » (vue unique), 90 s en modes « photo » et « text ».
 const SELF_DESTRUCT = Number(process.env.ROLE_SELF_DESTRUCT ?? (ROLE_DELIVERY === 'image' ? 0 : 90)) || 0

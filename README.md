@@ -57,8 +57,8 @@ Trois modes d'envoi, au choix avec `ROLE_DELIVERY` dans `.env` :
 
 | Mode | Ce que reçoit le joueur | Protection côté bot |
 |---|---|---|
-| `image` (défaut) | carte à **vue unique** (une seule ouverture, sur téléphone) | le téléphone du bot ne peut pas la rouvrir |
-| `photo` | image normale | supprimée pour tout le monde après `ROLE_SELF_DESTRUCT` s (90 par défaut) |
+| `image` | carte à **vue unique** (une seule ouverture, sur téléphone) | le téléphone du bot ne peut pas la rouvrir |
+| `photo` (défaut) | image normale | supprimée pour tout le monde après `ROLE_SELF_DESTRUCT` s (90 par défaut) |
 | `text` | message texte | supprimé pour tout le monde après `ROLE_SELF_DESTRUCT` s (90 par défaut) |
 
 Dans tous les modes, la conversation privée est **effacée côté bot** quelques secondes après l'envoi (`WIPE_DM_CHAT=true`)
@@ -66,7 +66,8 @@ et le bot n'écrit jamais les rôles dans ses logs. Un joueur qui a raté son me
 
 **Choisir le bon mode** : tape `/imposteur test` dans le groupe. Le bot envoie en privé 3 messages de test (A = vue unique,
 B = photo, C = texte) et indique ce que WhatsApp a accepté. Regarde lesquels sont réellement arrivés, puis règle `ROLE_DELIVERY`.
-La vue unique est la plus équitable, mais certaines versions de WhatsApp ou de Baileys ne la livrent pas : dans ce cas, utilise `photo`.
+La vue unique est la plus discrète, mais elle n'est pas livrée sur tous les comptes (c'est le cas si le test A n'arrive pas) : le mode par défaut est donc `photo`.
+Pour renforcer `photo`, raccourcis `ROLE_SELF_DESTRUCT` (par exemple 45 s).
 
 Limites honnêtes : celui qui contrôle le serveur et le code pourrait modifier le programme pour afficher les rôles.
 La protection couvre ce que l'on voit sur le téléphone du bot, pas un hébergeur malveillant.
