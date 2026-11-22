@@ -234,10 +234,10 @@ const senderOf = (m) => {
     alt = sock?.user?.lid
   } else if (group) {
     jid = k.participant
-    alt = k.participantAlt
+    alt = k.participantAlt || k.participantPn || k.senderPn
   } else {
     jid = k.remoteJid
-    alt = k.remoteJidAlt
+    alt = k.remoteJidAlt || k.senderPn
   }
   if (!jid) return null
   jid = clean(jid)
@@ -394,26 +394,54 @@ const wipeChat = async (jid, sent) => {
   }
 }
 
-// Envoie une carte (ou un texte) à `jid`. Ne journalise jamais le contenu du rôle.
-const sendCard = async (jid, spec, fallbackText) => {
+// Envoie une carte (ou un texte) au premier jid qui fonctionne. Ne journalise jamais le contenu du rôle.
+// Retourne { ok: true } ou { ok: false, error }.
+const sendCard = async (jids, spec, fallbackText) => {
+  let content
   try {
-    let sent
-    if (ROLE_DELIVERY === 'image') {
-      sent = await sock.sendMessage(jid, { image: await renderCard(spec), viewOnce: true })
-    } else {
-      sent = await sock.sendMessage(jid, { text: fallbackText })
-    }
-    await wipeChat(jid, sent)
-    return true
+    content = ROLE_DELIVERY === 'image' ? { image: await renderCard(spec), viewOnce: true } : { text: fallbackText }
   } catch (e) {
-    console.error('[imposteur] envoi privé impossible :', e.message)
-    return false
+    console.error('[imposteur] génération de la carte impossible :', e.message)
+    return { ok: false, error: `génération de la carte impossible (${e.message})` }
   }
+  let lastError = 'erreur inconnue'
+  for (const jid of [...new Set(jids.filter(Boolean))]) {
+    const kind = jid.endsWith('@lid') ? 'LID' : 'numéro'
+    try {
+      const sent = await sock.sendMessage(jid, content)
+      console.log(`[imposteur] envoi privé accepté par WhatsApp (destinataire : ${kind})`)
+      await wipeChat(jid, sent)
+      return { ok: true }
+    } catch (e) {
+      lastError = e?.message || String(e)
+      console.error(`[imposteur] envoi privé impossible (destinataire : ${kind}) :`, lastError)
+    }
+  }
+  return { ok: false, error: lastError }
 }
 
 const deliverRole = (g, p) => {
   const isImp = p === g.imposter
-  return sendCard(p.dm, cardSpec(g, isImp), roleText(g, isImp))
+  return sendCard([p.dm, p.jid], cardSpec(g, isImp), roleText(g, isImp))
+}
+
+// Si un joueur n’est connu que par son identifiant LID, retrouve son numéro via les infos du groupe
+const resolveDms = async (key, g) => {
+  const lids = g.players.filter((p) => p.dm.endsWith('@lid'))
+  if (!lids.length) return
+  try {
+    const meta = await sock.groupMetadata(key)
+    for (const p of lids) {
+      const m = (meta.participants || []).find((x) => [x.id, x.lid, x.jid, x.phoneNumber].some((v) => v && num(v) === num(p.dm)))
+      const pn = m && [m.phoneNumber, m.jid, m.id].find((v) => v && String(v).endsWith('@s.whatsapp.net'))
+      if (pn) {
+        p.dm = clean(pn)
+        p.ids.add(num(pn))
+      }
+    }
+  } catch (e) {
+    console.warn('[imposteur] résolution des numéros impossible :', e.message)
+  }
 }
 
 // ───────── Mots ─────────
@@ -482,15 +510,21 @@ const beginGame = async (key, manual = false) => {
     `${progressBar(done, total)} ${done}/${total}` +
     (last ? `\n${last}` : '')
 
+  await resolveDms(key, g)
   const first = await say(key, progress(0), jidsOf(g))
 
   const failed = []
+  let firstError = ''
   let done = 0
   for (const p of g.players) {
     if (games.get(key) !== g) return // partie annulée entre-temps
-    const ok = await deliverRole(g, p)
+    const r = await deliverRole(g, p)
+    const ok = r.ok
     done++
-    if (!ok) failed.push(p.jid)
+    if (!ok) {
+      failed.push(p.jid)
+      if (!firstError) firstError = r.error
+    }
     await editMsg(
       key,
       first,
@@ -504,7 +538,7 @@ const beginGame = async (key, manual = false) => {
   if (failed.length) {
     await say(
       key,
-      `⚠️ Je n’ai pas pu écrire en privé à ${failed.map(tag).join(', ')}. Écrivez-moi d’abord en privé (un simple « salut »), puis tapez *${P}imposteur mot* pour recevoir votre ${secretLabel}.`,
+      `⚠️ Je n’ai pas pu écrire en privé à ${failed.map(tag).join(', ')}. Écrivez-moi d’abord en privé (un simple « salut »), puis tapez *${P}imposteur mot* pour recevoir votre ${secretLabel}.\n🔧 Détail technique : ${firstError}`,
       failed
     )
   }
@@ -734,13 +768,14 @@ const resendRole = async (chat, isGroup, me) => {
   if (!game) return say(chat, 'Je ne te trouve dans aucune partie en cours (ou les rôles ne sont pas encore distribués).')
   if (onCooldown(`role:${num(me.jid)}`, 10)) return say(chat, '⏳ Patiente quelques secondes avant de redemander ton rôle.')
   const p = findPlayer(game, me.ids)
-  const ok = await deliverRole(game, p)
-  if (!isGroup) return ok ? undefined : say(chat, 'Impossible de t’envoyer ton rôle pour le moment.')
+  const r = await deliverRole(game, p)
+  const ok = r.ok
+  if (!isGroup) return ok ? undefined : say(chat, `Impossible de t’envoyer ton rôle pour le moment.\n🔧 ${r.error}`)
   return say(
     chat,
     ok
       ? `📩 ${tag(me.jid)} : rôle renvoyé en privé.`
-      : `Impossible de t’écrire en privé : envoie-moi d’abord un message en privé, puis *${P}imposteur mot*.`,
+      : `Impossible de t’écrire en privé : envoie-moi d’abord un message en privé, puis *${P}imposteur mot*.\n🔧 ${r.error}`,
     [me.jid]
   )
 }
@@ -766,12 +801,17 @@ const handleCommand = async (chat, isGroup, me, text) => {
 
   if (word === 'test') {
     if (onCooldown(`test:${num(me.jid)}`, 30)) return say(chat, '⏳ Un test toutes les 30 secondes, patience.')
-    const ok = await sendCard(
-      me.dm,
+    const r = await sendCard(
+      [me.dm, me.jid],
       { title: 'CARTE DE TEST', color: '#4da3ff', category: 'Catégorie : Test', big: 'Ça marche !', lines: ['Si tu lis ce texte,', 'les cartes s’affichent bien.'] },
       '🧪 Carte de test (mode texte).'
     )
-    return say(chat, ok ? '🧪 Carte de test envoyée en privé.' : 'Impossible de t’écrire en privé : envoie-moi d’abord un message en privé.')
+    return say(
+      chat,
+      r.ok
+        ? '🧪 Carte de test envoyée en privé : WhatsApp l’a acceptée. Rien reçu ? Vérifie ta discussion avec le bot.'
+        : `❌ Échec de l’envoi de la carte.\n🔧 ${r.error}`
+    )
   }
 
   if (!isGroup) {
