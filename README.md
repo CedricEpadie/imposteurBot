@@ -53,20 +53,26 @@ yarn pm2 save
 
 ## Équité : l'hébergeur du bot peut-il voir les rôles ?
 
-Par défaut (`ROLE_DELIVERY=image`), chaque joueur reçoit une **carte image à vue unique** :
-- elle ne peut être ouverte qu'**une seule fois**, sur le téléphone du joueur (pas sur WhatsApp Web) ;
-- l'expéditeur, donc le téléphone du bot, **ne peut pas la rouvrir** ;
-- la conversation privée est ensuite **effacée côté bot** (`WIPE_DM_CHAT=true`) : pas d'aperçu dans la liste des discussions ;
-- le bot n'écrit jamais les rôles dans ses logs.
+Trois modes d'envoi, au choix avec `ROLE_DELIVERY` dans `.env` :
 
-Limites honnêtes : celui qui contrôle le serveur et le code pourrait toujours modifier le programme pour afficher les rôles.
+| Mode | Ce que reçoit le joueur | Protection côté bot |
+|---|---|---|
+| `image` (défaut) | carte à **vue unique** (une seule ouverture, sur téléphone) | le téléphone du bot ne peut pas la rouvrir |
+| `photo` | image normale | supprimée pour tout le monde après `ROLE_SELF_DESTRUCT` s (90 par défaut) |
+| `text` | message texte | supprimé pour tout le monde après `ROLE_SELF_DESTRUCT` s (90 par défaut) |
+
+Dans tous les modes, la conversation privée est **effacée côté bot** quelques secondes après l'envoi (`WIPE_DM_CHAT=true`)
+et le bot n'écrit jamais les rôles dans ses logs. Un joueur qui a raté son message tape `/imposteur mot` en privé pour en recevoir un nouveau.
+
+**Choisir le bon mode** : tape `/imposteur test` dans le groupe. Le bot envoie en privé 3 messages de test (A = vue unique,
+B = photo, C = texte) et indique ce que WhatsApp a accepté. Regarde lesquels sont réellement arrivés, puis règle `ROLE_DELIVERY`.
+La vue unique est la plus équitable, mais certaines versions de WhatsApp ou de Baileys ne la livrent pas : dans ce cas, utilise `photo`.
+
+Limites honnêtes : celui qui contrôle le serveur et le code pourrait modifier le programme pour afficher les rôles.
 La protection couvre ce que l'on voit sur le téléphone du bot, pas un hébergeur malveillant.
-Conseils : utilise un **numéro dédié** au bot (pas ton WhatsApp personnel) et joue avec ton compte habituel.
+Conseils : utilise un **numéro dédié** au bot et joue avec ton compte habituel.
 
-**Vérifie avant la première partie** : tape `/imposteur test` avec ton compte joueur (la carte arrive en privé), puis regarde
-sur le téléphone du bot que le contenu n'est pas lisible.
 Les cartes utilisent des polices système : sur un serveur minimal, installe-en une (`sudo apt install fonts-dejavu-core`).
-`ROLE_DELIVERY=text` désactive les cartes (rôles visibles par l'hébergeur).
 
 ## Déroulement (6 phases avec décomptes)
 

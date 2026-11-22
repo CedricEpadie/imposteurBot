@@ -52,7 +52,12 @@ const P = process.env.PREFIX || '/'
 const AUTH_DIR = process.env.AUTH_DIR || './auth' // dossier de session : à placer sur un volume persistant
 const PAIRING_NUMBER = (process.env.PAIRING_NUMBER || '').replace(/\D/g, '') // ex. 237600000000 → connexion par code au lieu du QR
 // image : carte à vue unique (équitable, recommandé) — text : message texte classique (visible par l’hébergeur du bot)
-const ROLE_DELIVERY = (process.env.ROLE_DELIVERY || 'image').toLowerCase() === 'text' ? 'text' : 'image'
+//   image = carte à vue unique (équitable) • photo = image normale qui s’efface seule • text = texte qui s’efface seul
+const ROLE_MODE = (process.env.ROLE_DELIVERY || 'image').toLowerCase()
+const ROLE_DELIVERY = ['image', 'photo', 'text'].includes(ROLE_MODE) ? ROLE_MODE : 'image'
+// Secondes avant suppression automatique du message de rôle (pour tout le monde). 0 = jamais.
+// Par défaut : désactivé en mode « image » (vue unique), 90 s en modes « photo » et « text ».
+const SELF_DESTRUCT = Number(process.env.ROLE_SELF_DESTRUCT ?? (ROLE_DELIVERY === 'image' ? 0 : 90)) || 0
 // Efface la conversation privée côté bot juste après l’envoi d’un rôle
 const WIPE_DM_CHAT = (process.env.WIPE_DM_CHAT || 'true').toLowerCase() !== 'false'
 
@@ -329,7 +334,7 @@ const renderCard = async ({ title, color, category, big, lines }) => {
   <text x="450" y="355" text-anchor="middle" font-family="${font}" font-size="${size}" font-weight="bold" fill="#ffffff">${esc(big)}</text>
   ${footer}
 </svg>`
-  return sharp(Buffer.from(svg)).png().toBuffer()
+  return sharp(Buffer.from(svg)).jpeg({ quality: 92 }).toBuffer()
 }
 
 const plainCategory = (cat) => 'Catégorie : ' + String(cat).replace(/[^\p{L}\p{N}\s'’-]/gu, '').trim()
@@ -399,7 +404,8 @@ const wipeChat = async (jid, sent) => {
 const sendCard = async (jids, spec, fallbackText) => {
   let content
   try {
-    content = ROLE_DELIVERY === 'image' ? { image: await renderCard(spec), viewOnce: true } : { text: fallbackText }
+    if (ROLE_DELIVERY === 'text') content = { text: fallbackText }
+    else content = { image: await renderCard(spec), mimetype: 'image/jpeg', ...(ROLE_DELIVERY === 'image' ? { viewOnce: true } : {}) }
   } catch (e) {
     console.error('[imposteur] génération de la carte impossible :', e.message)
     return { ok: false, error: `génération de la carte impossible (${e.message})` }
@@ -410,7 +416,14 @@ const sendCard = async (jids, spec, fallbackText) => {
     try {
       const sent = await sock.sendMessage(jid, content)
       console.log(`[imposteur] envoi privé accepté par WhatsApp (destinataire : ${kind})`)
-      await wipeChat(jid, sent)
+      setTimeout(() => wipeChat(jid, sent).catch(() => {}), 3000) // différé : on laisse le message partir complètement
+      if (SELF_DESTRUCT > 0 && sent?.key) {
+        setTimeout(async () => {
+          try {
+            await sock.sendMessage(jid, { delete: sent.key })
+          } catch {}
+        }, SELF_DESTRUCT * 1000)
+      }
       return { ok: true }
     } catch (e) {
       lastError = e?.message || String(e)
@@ -506,7 +519,7 @@ const beginGame = async (key, manual = false) => {
   const total = g.players.length
   const progress = (done, last) =>
     `${header('dm')}👥 ${total} joueurs : ${listOf(g)}\n🏷️ Catégorie : ${g.category}\n🎮 Mode : ${MODE_LABEL[g.mode]}\n\n` +
-    `📩 Envoi des ${secretPlural} en privé${ROLE_DELIVERY === 'image' ? ' (carte à vue unique 👁️)' : ''}…\n` +
+    `📩 Envoi des ${secretPlural} en privé${ROLE_DELIVERY === 'image' ? ' (carte à vue unique 👁️)' : ''}${ROLE_DELIVERY !== 'image' && SELF_DESTRUCT > 0 ? ` (message effacé après ${SELF_DESTRUCT} s)` : ''}…\n` +
     `${progressBar(done, total)} ${done}/${total}` +
     (last ? `\n${last}` : '')
 
@@ -548,6 +561,7 @@ const beginGame = async (key, manual = false) => {
     key,
     `📖 *Lisez bien votre ${secretLabel} !*\n` +
       (ROLE_DELIVERY === 'image' ? `La carte ne s’ouvre qu’*UNE fois* : ouvrez-la sur votre téléphone.\n` : '') +
+      (ROLE_DELIVERY !== 'image' && SELF_DESTRUCT > 0 ? `Votre message s’efface tout seul après *${SELF_DESTRUCT} s* : lisez-le vite !\n` : '') +
       `Rien reçu ? *${P}imposteur mot* en privé au bot.\n\n🎬 Les indices commencent dans *${READ_SECONDS} s*…`
   )
   phaseTimer(g, READ_SECONDS, () => askTurn(key), {
@@ -759,6 +773,46 @@ const conclude = async (key, winner, reason, extraMentions = []) => {
   )
 }
 
+// Envoie 3 variantes de test (sans effacement ni suppression) pour diagnostiquer ce que WhatsApp accepte
+const testSpec = (label) => ({
+  title: `TEST ${label}`,
+  color: '#4da3ff',
+  category: 'Catégorie : Test',
+  big: 'Ça marche !',
+  lines: ['Si tu lis ce texte,', 'ce mode fonctionne.'],
+})
+
+const runTest = async (me) => {
+  const targets = [...new Set([me.dm, me.jid])]
+  const variants = [
+    ['A · image à vue unique (ROLE_DELIVERY=image)', async () => ({ image: await renderCard(testSpec('A · VUE UNIQUE')), mimetype: 'image/jpeg', viewOnce: true })],
+    ['B · photo normale (ROLE_DELIVERY=photo)', async () => ({ image: await renderCard(testSpec('B · PHOTO')), mimetype: 'image/jpeg' })],
+    ['C · texte (ROLE_DELIVERY=text)', async () => ({ text: '🧪 TEST C · texte : si tu lis ceci, le mode texte fonctionne.' })],
+  ]
+  const out = []
+  for (const [label, build] of variants) {
+    let ok = false
+    let err = 'erreur inconnue'
+    try {
+      const content = await build()
+      for (const jid of targets) {
+        try {
+          await sock.sendMessage(jid, content)
+          ok = true
+          break
+        } catch (e) {
+          err = e?.message || String(e)
+        }
+      }
+    } catch (e) {
+      err = `génération impossible (${e.message})`
+    }
+    out.push(`${ok ? '✅' : '❌'} ${label}${ok ? '' : ` — ${err}`}`)
+    await sleep(2000)
+  }
+  return out
+}
+
 // Renvoie son rôle : en privé (ou depuis le groupe, avec envoi en privé)
 const resendRole = async (chat, isGroup, me) => {
   let game = null
@@ -801,16 +855,13 @@ const handleCommand = async (chat, isGroup, me, text) => {
 
   if (word === 'test') {
     if (onCooldown(`test:${num(me.jid)}`, 30)) return say(chat, '⏳ Un test toutes les 30 secondes, patience.')
-    const r = await sendCard(
-      [me.dm, me.jid],
-      { title: 'CARTE DE TEST', color: '#4da3ff', category: 'Catégorie : Test', big: 'Ça marche !', lines: ['Si tu lis ce texte,', 'les cartes s’affichent bien.'] },
-      '🧪 Carte de test (mode texte).'
-    )
+    await say(chat, '🧪 J’envoie 3 messages de test en privé (A, B, C)… patiente une dizaine de secondes.')
+    const results = await runTest(me)
     return say(
       chat,
-      r.ok
-        ? '🧪 Carte de test envoyée en privé : WhatsApp l’a acceptée. Rien reçu ? Vérifie ta discussion avec le bot.'
-        : `❌ Échec de l’envoi de la carte.\n🔧 ${r.error}`
+      `🧪 *Résultat du test*\n${results.join('\n')}\n\n` +
+        `✅ = accepté par WhatsApp côté bot. Regarde dans ta discussion privée avec le bot *lesquels sont réellement arrivés*, ` +
+        `puis choisis le mode correspondant dans .env (ROLE_DELIVERY).`
     )
   }
 
@@ -1110,7 +1161,7 @@ process.on('unhandledRejection', (e) => console.error('unhandledRejection :', e)
 process.on('uncaughtException', (e) => console.error('uncaughtException :', e))
 
 // Vérifie au démarrage que les cartes de rôle peuvent être générées
-if (ROLE_DELIVERY === 'image') {
+if (ROLE_DELIVERY !== 'text') {
   try {
     await renderCard({ title: 'TEST', color: '#ffffff', category: 'Catégorie : Test', big: 'Test', lines: ['ok'] })
   } catch (e) {
