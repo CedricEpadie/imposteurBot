@@ -509,6 +509,7 @@ const beginGame = async (key, manual = false) => {
   g.closeWord = closeWord // mot proche de l’imposteur (mode « proche » uniquement)
   const secretLabel = g.mode === 'proche' ? 'mot secret' : 'rôle'
   const secretPlural = g.mode === 'proche' ? 'mots secrets' : 'rôles'
+  g.players = shuffle(g.players)
   g.imposter = pick(g.players)
   g.order = shuffle(g.players)
   g.turns = []
