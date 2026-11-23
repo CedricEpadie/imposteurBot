@@ -82,7 +82,7 @@ Les cartes utilisent des polices système : sur un serveur minimal, installe-en 
 3. **Indices** : ordre de passage annoncé, « C'est à @x » + « Ensuite : @y », décompte (20 / 10 / 5 s),
    chaque indice est annoncé aussitôt, les oublis sont signalés, récap à la fin de chaque tour ; dire son propre mot secret est refusé.
 4. **Débat** : récap de tous les indices, rappels de temps.
-5. **Vote** : chaque vote est notifié (sans révéler le suspect), qui reste à voter, fin anticipée quand tout le monde a voté, dépouillement détaillé.
+5. **Vote** : on vote en **mentionnant (@)** le suspect, un seul @ par message (répondre à un message ne vote pas) ; chaque vote est notifié (sans révéler le suspect), qui reste à voter, fin anticipée quand tout le monde a voté, dépouillement détaillé.
 6. **Verdict** : dernière chance de l'imposteur avec décompte, révélation des mots et récap des indices.
 
 `/imposteur etat` affiche à tout moment la phase, le temps restant et qui doit parler / voter.

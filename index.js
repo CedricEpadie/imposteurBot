@@ -18,7 +18,7 @@
 //  /imposteur go                   → lancer (lanceur) — sinon lancement auto après le délai
 //  /imposteur mot                  → renvoyer son rôle (aussi utilisable en PRIVÉ avec le bot)
 //  /imposteur etat                 → phase en cours, temps restant, joueurs
-//  /imposteur vote                 → passer au vote (lanceur)
+//  /imposteur vote                 → passer au vote (lanceur) ; on vote ensuite avec une @mention du suspect
 //  /imposteur stop                 → annuler la partie (lanceur)
 //  /imposteur top                  → classement des victoires
 //  /imposteur test                 → t’envoie une carte de test (pour vérifier l’affichage)
@@ -509,7 +509,6 @@ const beginGame = async (key, manual = false) => {
   g.closeWord = closeWord // mot proche de l’imposteur (mode « proche » uniquement)
   const secretLabel = g.mode === 'proche' ? 'mot secret' : 'rôle'
   const secretPlural = g.mode === 'proche' ? 'mots secrets' : 'rôles'
-  g.players = shuffle(g.players)
   g.imposter = pick(g.players)
   g.order = shuffle(g.players)
   g.turns = []
@@ -593,7 +592,7 @@ const askTurn = async (key) => {
     head = `🔁 *Tour ${round}/${CLUE_ROUNDS}* — on repart dans le même ordre !\n\n`
   }
   const next = g.turns[g.turnIdx + 1]
-  const mentions = [t.jid, ...(g.turnIdx === 0 ? jidsOf(g) : [])]
+  const mentions = [t.jid, ...(next ? [next.jid] : []), ...(g.turnIdx === 0 ? jidsOf(g) : [])]
 
   phaseTimer(g, CLUE_SECONDS, () => takeClue(key, null), {
     marks: [20, 10, 5],
@@ -681,8 +680,8 @@ const startVote = async (key) => {
   return say(
     key,
     `${header('vote')}🗳️ *Qui est l’imposteur ?*\n\n${listOf(g)}\n\n` +
-      `👉 *Mentionne (@)* ton suspect ou *réponds à son message*.\n` +
-      `Pas de vote pour soi-même • le dernier vote compte • les votes restent secrets jusqu’au dépouillement.\n` +
+      `👉 Pour voter, *mentionne (@)* ton suspect : un seul @ par message.\n` +
+      `Répondre à un message ne compte pas • pas de vote pour soi-même • le dernier vote compte • les votes restent secrets jusqu’au dépouillement.\n` +
       `⏱️ *${VOTE_SECONDS} s* (le vote s’arrête dès que tout le monde a voté).`,
     jidsOf(g)
   )
@@ -1022,11 +1021,10 @@ const handleGameText = async (chat, me, text, mentioned, quoted) => {
   if (g.phase === 'vote') {
     const voter = findPlayer(g, me.ids)
     if (!voter) return
-    const target = mentioned[0] || quoted
-    if (!target) return
-    const suspect = g.players.find((p) => p.ids.has(num(target)))
-    if (!suspect) return say(chat, `⛔ ${tag(voter.jid)} : ${tag(target)} ne participe pas à la partie.`, [voter.jid, target])
-    if (suspect === voter) return say(chat, `⛔ ${tag(voter.jid)} : tu ne peux pas voter pour toi-même !`, [voter.jid])
+    // Seule une @mention vote, et un seul @ par message (répondre à un message ne vote pas : on discute !)
+    if (mentioned.length !== 1) return
+    const suspect = g.players.find((p) => p.ids.has(num(mentioned[0])))
+    if (!suspect || suspect === voter) return // @ d’un non-joueur ou de soi-même : simple discussion, on ignore
     const changed = g.votes.has(voter)
     g.votes.set(voter, suspect) // un vote par personne : le dernier compte
     const waiting = pendingVoters(g)
