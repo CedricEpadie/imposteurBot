@@ -1,6 +1,7 @@
 // Mode classique : tous les joueurs reçoivent la catégorie et le mot secret… sauf l’imposteur,
 // qui ne connaît que la catégorie et doit bluffer.
 import { plainCategory } from '../../core/utils.js'
+import { C } from '../../render/theme.js'
 import { multi, ie, theImp } from '../wording.js'
 
 export default {
@@ -25,7 +26,7 @@ export default {
     return isImposter
       ? {
           title: 'TU ES L’IMPOSTEUR',
-          color: '#ff5d5d',
+          color: C.red,
           category,
           big: 'Mot inconnu',
           lines: multi(g)
@@ -34,7 +35,7 @@ export default {
         }
       : {
           title: 'TU ES CIVIL',
-          color: '#3ddc84',
+          color: C.green,
           category,
           big: g.word,
           lines: ['Donne un indice en un seul mot,', 'sans dire le mot secret.'],

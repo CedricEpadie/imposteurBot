@@ -13,7 +13,7 @@ export const C = {
   line: '#323f55', // filets
   text: '#f4f6fa', // texte principal
   muted: '#9aa7b8', // texte secondaire
-  dim: '#5f6b7d', // texte discret (éliminé, signature)
+  dim: '#7d8a9f', // texte discret (éliminé, signature) — contraste suffisant sur fond sombre
 
   gold: '#f0b429', // identité du jeu : titres, tableau, points
   red: '#ff5d6c', // imposteur, danger, élimination
@@ -24,3 +24,7 @@ export const C = {
 export const W = 900 // largeur de toutes les images
 export const FOOTER_H = 56 // bandeau de signature réservé en bas de chaque image
 export const PAD = 40 // marge intérieure
+
+// Tailles de texte (px sur 900 de large). Sur un téléphone l’image est affichée ~2,4 fois plus petite :
+// rien ne descend sous SIZE.small, pour rester lisible.
+export const SIZE = { title: 48, sub: 26, h2: 24, body: 28, small: 22 }

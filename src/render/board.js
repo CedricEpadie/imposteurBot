@@ -17,7 +17,7 @@ export const boardSvg = (g) => {
   const colW = (W - 40 - firstCol) / rounds
   const clueOf = (p, round) => g.clues.find((c) => c.manche === g.manche && c.round === round && c.p === p)
 
-  const header = Array.from({ length: rounds }, (_, r) => t(firstCol + colW * r + colW / 2, 168, `Tour ${r + 1}`, { size: 22, fill: C.muted, anchor: 'middle' })).join('')
+  const header = Array.from({ length: rounds }, (_, r) => t(firstCol + colW * r + colW / 2, 168, `Tour ${r + 1}`, { size: 26, weight: 'bold', fill: C.gold, anchor: 'middle' })).join('')
 
   const body = rows
     .map((p, i) => {
@@ -27,12 +27,12 @@ export const boardSvg = (g) => {
       const cells = Array.from({ length: rounds }, (_, r) => {
         const c = clueOf(p, r + 1)
         const text = c ? c.text || '…' : '—'
-        return t(firstCol + colW * r + colW / 2, y + 40, text, { size: fit(text, colW - 16, 30, 16), weight: 'bold', fill: c?.text ? C.text : C.dim, anchor: 'middle' })
+        return t(firstCol + colW * r + colW / 2, y + 40, text, { size: fit(text, colW - 16, 32, 18), weight: 'bold', fill: c?.text ? C.text : C.dim, anchor: 'middle' })
       }).join('')
-      return `<g opacity="${dead ? 0.45 : 1}">
+      return `<g opacity="${dead ? 0.6 : 1}">
   ${rect(24, y, W - 48, ROW_H - 6, { r: 12, fill: i % 2 ? C.panel : C.panel2 })}
   ${t(44, y + 40, dead ? '✕' : alive.indexOf(p) + 1 + '.', { size: 26, fill: dead ? C.red : C.gold })}
-  ${t(96, y + 40, name, { size: fit(name, 290, 28, 18), deco: dead ? 'line-through' : '' })}
+  ${t(96, y + 40, name, { size: fit(name, 290, 30, 20), deco: dead ? 'line-through' : '' })}
   ${cells}
 </g>`
     })

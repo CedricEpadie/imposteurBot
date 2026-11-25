@@ -1,6 +1,7 @@
 // Mode « proche » : l’imposteur reçoit un mot VOISIN (ex. « koki » au lieu de « ndolé »)
 // et ne sait pas qu’il est l’imposteur ! Il doit s’en rendre compte grâce aux indices des autres.
 import { plainCategory } from '../../core/utils.js'
+import { C } from '../../render/theme.js'
 import { multi, ie } from '../wording.js'
 
 export default {
@@ -22,7 +23,7 @@ export default {
   card(g, isImposter) {
     return {
       title: 'TON MOT SECRET',
-      color: '#f0b429',
+      color: C.gold,
       category: plainCategory(g.category),
       big: isImposter ? g.closeWord : g.word,
       lines: ['Donne un indice en un seul mot.', multi(g) ? 'Certains joueurs ont un mot différent : reste discret.' : 'Un joueur a un mot différent : reste discret.'],

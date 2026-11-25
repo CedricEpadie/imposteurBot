@@ -52,7 +52,7 @@ export const rect = (x, y, w, h, { r = 14, fill = C.panel, stroke = '', sw = 2, 
   `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${fill}"${stroke ? ` stroke="${stroke}" stroke-width="${sw}"` : ''}${opacity !== 1 ? ` opacity="${opacity}"` : ''}/>`
 
 // Pastille arrondie avec libellé centré
-export const pill = (x, y, w, h, label, { fill = C.panel2, color = C.text, size = 18 } = {}) =>
+export const pill = (x, y, w, h, label, { fill = C.panel2, color = C.text, size = 20 } = {}) =>
   rect(x, y, w, h, { r: h / 2, fill }) + t(x + w / 2, y + h / 2 + size * 0.35, label, { size, weight: 'bold', fill: color, anchor: 'middle' })
 
 // Cercle numéroté (étapes, classement)
@@ -71,12 +71,12 @@ export const logoMark = (x, y, s, color = C.gold) =>
 
 // Titre centré + sous-titre (haut de carte)
 export const heading = (title, sub, accent = C.gold, { y = 84 } = {}) =>
-  t(W / 2, y, title, { size: fit(title, W - 120, 42, 26), weight: 'bold', fill: accent, anchor: 'middle' }) +
-  (sub ? t(W / 2, y + 40, sub, { size: fit(sub, W - 120, 24, 16), fill: C.muted, anchor: 'middle' }) : '')
+  t(W / 2, y, title, { size: fit(title, W - 100, 48, 30), weight: 'bold', fill: accent, anchor: 'middle' }) +
+  (sub ? t(W / 2, y + 42, sub, { size: fit(sub, W - 100, 26, 20), fill: C.muted, anchor: 'middle' }) : '')
 
 // Titre de section (à gauche, avec filet)
 export const section = (y, label, accent = C.gold) =>
-  t(48, y, label, { size: 20, weight: 'bold', fill: accent }) + `<line x1="48" y1="${y + 12}" x2="${W - 48}" y2="${y + 12}" stroke="${C.line}" stroke-width="2"/>`
+  t(48, y, label, { size: 24, weight: 'bold', fill: accent }) + `<line x1="48" y1="${y + 14}" x2="${W - 48}" y2="${y + 14}" stroke="${C.line}" stroke-width="2"/>`
 
 // Gabarit commun : fond, cadre à la couleur d’accent, contenu, signature. `contentH` = hauteur utile (hors signature).
 export const canvas = (contentH, accent, body) => {

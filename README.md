@@ -241,3 +241,5 @@ La suite (`test/`) fait tourner le vrai code du bot contre un **faux WhatsApp** 
 s'exécute en quelques secondes, sans réseau. Elle couvre les règles d'indices, le scoring, le classement, les manches d'élimination,
 les 2 imposteurs, la reprise après plantage, les packs, les commandes admin et le tableau en image.
 Définis `TEST_VERBOSE=1` pour voir les logs du bot pendant les tests.
+### Lisibilité des images
+Les images sont pensées pour un écran de téléphone (affichées ~2,4 fois plus petites que leur largeur de 900 px) : aucun texte sous 22 px, titres 48 px, valeurs clés 28–34 px, contrastes élevés, couleurs sémantiques (rouge = imposteur/danger, vert = civils, or = indices/points, bleu = information). Le bilan ne détaille que les joueurs qui ont marqué ; les autres tiennent sur une ligne.
