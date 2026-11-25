@@ -3,7 +3,7 @@ import { config } from '../config.js'
 import { labelOf } from '../game/players.js'
 import { svgToJpeg } from './svg.js'
 import { C, W } from './theme.js'
-import { canvas, heading, t, rect, fit, plain } from './kit.js'
+import { canvas, heading, t, rect, fit, plain, clip } from './kit.js'
 
 const ROW_H = 62
 
@@ -23,7 +23,7 @@ export const boardSvg = (g) => {
     .map((p, i) => {
       const y = 186 + i * ROW_H
       const dead = g.eliminated.has(p)
-      const name = labelOf(p).slice(0, 20)
+      const name = clip(labelOf(p), 20)
       const cells = Array.from({ length: rounds }, (_, r) => {
         const c = clueOf(p, r + 1)
         const text = c ? c.text || '…' : '—'

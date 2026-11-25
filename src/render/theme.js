@@ -3,7 +3,8 @@
 //
 // Pour changer l’apparence de tout le jeu, modifie ce fichier.
 
-export const FONT = 'DejaVu Sans, Arial, Helvetica, sans-serif'
+// DejaVu Sans d’abord ; les caractères qu’elle n’a pas sont pris dans Unifont (embarquée, couvre presque tout Unicode)
+export const FONT = 'DejaVu Sans, Unifont, Unifont Upper, Arial, sans-serif'
 
 export const C = {
   bg: '#12161f', // fond des cartes

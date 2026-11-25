@@ -114,6 +114,9 @@ Les barèmes sont dans `src/config.js` (`scoring`).
 ### Identité visuelle (une seule charte)
 Toutes les images (cartes de rôle, tableau des indices, règles de `/imposteur aide`, graphique du dépouillement, bilan de fin de partie, `/imposteur etat`) sont dessinées avec `src/render/theme.js` (palette, police, largeur) et `src/render/kit.js` (titres, lignes, pastilles, barres, signature). Pour changer l'apparence de tout le jeu, modifier `theme.js`. Chaque image a un repli texte si `sharp` est absent ou si le rendu échoue (`sayVisual`).
 
+### Pseudos et polices embarquées
+Le dossier `fonts/` contient DejaVu Sans (police de la charte) et GNU Unifont (secours pour presque tout Unicode) : les pseudos en alphabets rares, en lettres décoratives, en emojis ou en CJK s'affichent même sur un serveur sans ces polices. Au démarrage, `render/svg.js` crée une configuration fontconfig privée qui ajoute ce dossier. `cleanName` (game/players.js) normalise les lettres décoratives (𝐃𝐄𝐍𝐄𝐌 → DENEM) et retire invisibles et accents empilés ; un pseudo vide devient son numéro.
+
 ### Vocabulaire singulier / pluriel
 Les messages qui parlent de l'imposteur passent par `src/game/wording.js` (`ie`, `pl`, `count`, `voteQuestion`…) : avec 2 imposteurs on lit « les imposteurs », « Il reste encore *1 imposteur* », etc.
 

@@ -110,3 +110,14 @@ test('le 16e joueur est refusé', async () => {
   assert.ok(b.has(/complète|15 joueurs max/) || getGame(G)?.phase !== 'lobby')
   await b.send(G, PL[0], '/stop')
 })
+
+test('pseudos : lettres décoratives normalisées, alphabets et emojis conservés, rien d’invisible', async () => {
+  const { labelOf, cleanName } = await import('../src/game/players.js')
+  const { clip, fit } = await import('../src/render/kit.js')
+  assert.equal(labelOf({ name: '𝐃𝐄𝐍𝐄𝐌 ＳＴＹＬ', num: '1' }), 'DENEM STYL')
+  assert.equal(labelOf({ name: '小明 🔥 مرحبا', num: '1' }), '小明 🔥 مرحبا')
+  assert.equal(labelOf({ name: '​⠀ㅤ', num: '2376' }), '+2376', 'pseudo invisible → numéro')
+  assert.equal((cleanName('Z\u0303\u0334\u0301\u0489algo').match(/\p{M}/gu) || []).length, 1, 'un seul signe combinant conservé')
+  assert.equal(clip('😀😀😀😀', 3), '😀😀…', 'jamais un emoji coupé en deux')
+  assert.ok(fit('小明小明小明小明', 200, 30, 12) < fit('abcdefgh', 200, 30, 12), 'les caractères larges réduisent la taille')
+})

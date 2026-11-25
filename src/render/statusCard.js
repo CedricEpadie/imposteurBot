@@ -5,7 +5,7 @@ import { phaseName } from '../game/phases-meta.js'
 import { getMode } from '../game/modes/index.js'
 import { modeLabel } from '../game/wording.js'
 import { C, W } from './theme.js'
-import { canvas, heading, section, t, rect, pill, bar, plain, fit } from './kit.js'
+import { canvas, heading, section, t, rect, pill, bar, plain, fit, clip } from './kit.js'
 
 export const statusSvg = (g) => {
   const { maxPlayers } = config.game
@@ -45,7 +45,7 @@ export const statusSvg = (g) => {
   g.players.forEach((p, i) => {
     const dead = g.eliminated.has(p)
     const x = 36 + (i % 2) * (cw + 12)
-    const name = labelOf(p).slice(0, 18)
+    const name = clip(labelOf(p), 18)
     body += `<g opacity="${dead ? 0.45 : 1}">` + rect(x, y, cw, 46, { r: 23, fill: C.panel2 }) + t(x + 24, y + 31, name, { size: fit(name, cw - 120, 22, 15), deco: dead ? 'line-through' : '' }) + (dead ? pill(x + cw - 100, y + 8, 84, 30, 'éliminé', { fill: C.red, color: C.bg, size: 15 }) : '') + '</g>'
     if (i % 2 === 1 || i === g.players.length - 1) y += 54
   })

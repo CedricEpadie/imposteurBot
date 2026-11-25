@@ -1,0 +1,5 @@
+Polices embarquées pour les images du bot (indépendantes des polices du serveur) :
+- DejaVu Sans (regular, bold) : police principale de la charte (licence libre DejaVu / Bitstream Vera).
+- GNU Unifont (BMP + plans supplémentaires) : police de secours qui couvre pratiquement tous les caractères Unicode
+  (alphabets rares, symboles, emojis en monochrome…) pour qu'un pseudo ne s'affiche jamais en carrés vides.
+  Licence : GPLv2+ avec exception pour les polices, ou SIL OFL 1.1 (http://unifoundry.com/unifont/).

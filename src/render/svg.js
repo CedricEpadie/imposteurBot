@@ -1,6 +1,32 @@
 // Rendu SVG → JPEG (sharp), et envoi d’une image avec repli texte.
 // Les SVG eux-mêmes sont construits avec la charte (theme.js + kit.js).
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { say, sayImage } from '../whatsapp/messenger.js'
+
+// Polices embarquées (dossier fonts/) : DejaVu Sans + GNU Unifont en secours, pour que n’importe quel pseudo
+// (alphabets rares, symboles, emojis…) s’affiche, quelles que soient les polices installées sur le serveur.
+// On crée une configuration fontconfig privée qui ajoute ce dossier aux polices du système.
+const FONT_DIR = fileURLToPath(new URL('../../fonts/', import.meta.url))
+const setupFonts = () => {
+  if (process.env.FONTCONFIG_FILE || !fs.existsSync(FONT_DIR)) return
+  try {
+    const conf = path.join(os.tmpdir(), 'imposteur-fonts.conf')
+    fs.writeFileSync(
+      conf,
+      `<?xml version="1.0"?>\n<!DOCTYPE fontconfig SYSTEM "fonts.dtd">\n<fontconfig>\n` +
+        `  <include ignore_missing="yes">/etc/fonts/fonts.conf</include>\n` +
+        `  <dir>${FONT_DIR}</dir>\n` +
+        `  <cachedir>${path.join(os.tmpdir(), 'imposteur-fontcache')}</cachedir>\n</fontconfig>\n`
+    )
+    process.env.FONTCONFIG_FILE = conf
+  } catch (e) {
+    console.warn('[imposteur] polices embarquées non activées :', e.message)
+  }
+}
+setupFonts() // avant le chargement de sharp
 
 let sharp = null
 try {

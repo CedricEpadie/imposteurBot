@@ -11,8 +11,18 @@ export const plain = (s) =>
     .replace(/\s+/g, ' ')
     .trim()
 
+// Largeur approximative d’un texte, en « em » : les caractères larges (CJK, emojis…) comptent double
+const isWide = (cp) => (cp >= 0x1100 && cp <= 0x115f) || (cp >= 0x2e80 && cp <= 0xa4cf) || (cp >= 0xac00 && cp <= 0xd7a3) || (cp >= 0xf900 && cp <= 0xfaff) || (cp >= 0xfe30 && cp <= 0xfe6f) || (cp >= 0xff00 && cp <= 0xff60) || cp >= 0x1f000
+export const emWidth = (text) => Array.from(String(text)).reduce((n, ch) => n + (isWide(ch.codePointAt(0)) ? 1.1 : 0.62), 0)
+
+// Coupe à n caractères (et non n unités UTF-16 : ne casse jamais un emoji ou une lettre rare en deux)
+export const clip = (text, n) => {
+  const chars = Array.from(String(text ?? ''))
+  return chars.length > n ? chars.slice(0, n - 1).join('') + '…' : chars.join('')
+}
+
 // Taille de police qui fait tenir `text` dans `width` pixels
-export const fit = (text, width, max, min) => Math.max(min, Math.min(max, Math.floor(width / (Math.max(String(text).length, 1) * 0.62))))
+export const fit = (text, width, max, min) => Math.max(min, Math.min(max, Math.floor(width / Math.max(emWidth(text), 0.62))))
 
 // Retour à la ligne par mots (maxChars caractères par ligne)
 export const wrap = (text, maxChars) => {
@@ -27,6 +37,12 @@ export const wrap = (text, maxChars) => {
   if (cur) lines.push(cur)
   return lines
 }
+
+// Retire ce qui ne peut pas se dessiner (contrôles, invisibles, XML invalide, empilements d’accents) sans changer le reste
+const safe = (str) =>
+  String(str ?? '')
+    .replace(/[\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Cn}\uFE0E\uFE0F]/gu, '')
+    .replace(/(\p{M})\p{M}+/gu, '$1')
 
 export const t = (x, y, str, { size = 24, weight = 'normal', fill = C.text, anchor = 'start', deco = '', opacity = 1 } = {}) =>
   `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="${FONT}" font-size="${size}" font-weight="${weight}" fill="${fill}"` +
