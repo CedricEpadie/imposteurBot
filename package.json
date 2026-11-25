@@ -1,6 +1,6 @@
 {
   "name": "imposteur-bot",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Bot WhatsApp du jeu de l'Imposteur (mot secret, indices, vote)",
   "type": "module",
   "main": "index.js",
@@ -11,10 +11,11 @@
     "restart": "pm2 restart imposteur",
     "delete": "pm2 delete imposteur",
     "logs": "pm2 logs imposteur",
-    "status": "pm2 status"
+    "status": "pm2 status",
+    "test": "node --import ./test/register.mjs --test --test-concurrency=1 test/*.test.mjs"
   },
   "engines": {
-    "node": ">=20.12"
+    "node": ">=22.13"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "latest",

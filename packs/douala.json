@@ -1,0 +1,31 @@
+{
+  "name": "Douala 🌊",
+  "description": "Quartiers, lieux et gastronomie de Douala",
+  "categories": {
+    "🏘️ Quartiers de Douala": [
+      ["Akwa","Bonanjo"],
+      ["Bonapriso","Bonanjo"],
+      ["Deido","New Bell"],
+      ["Makepe","Kotto"],
+      ["Bepanda","Ndokotti"],
+      ["Bonabéri","Bali"],
+      ["Logbaba","Ndogbong"],
+      ["Bonamoussadi","Makepe"]
+    ],
+    "📍 Lieux de Douala": [
+      ["Marché Mboppi","Marché New Bell"],
+      ["Stade de la Réunion","Stade Japoma"],
+      ["Aéroport de Douala","Port de Douala"],
+      ["Boulevard de la Liberté","Boulevard de la République"],
+      ["Rond-point Deido","Rond-point Ndokotti"],
+      ["Wouri","Mungo"]
+    ],
+    "🍤 Gastronomie": [
+      ["Ndolé","Eru"],
+      ["Miondo","Bobolo"],
+      ["Poisson braisé","Soya"],
+      ["Mbongo tchobi","Sauce jaune"],
+      ["Beignets","Pain chargé"]
+    ]
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "name": "Foot ⚽",
+  "description": "Joueurs, équipes, règles et compétitions",
+  "categories": {
+    "⚽ Joueurs": [
+      ["Messi","Ronaldo"],
+      ["Eto’o","Drogba"],
+      ["Mbappé","Haaland"],
+      ["Roger Milla","Samuel Eto’o"],
+      ["Neymar","Vinícius"],
+      ["Salah","Mané"],
+      ["Zidane","Henry"],
+      ["André Onana","Carlos Kameni"],
+      ["Aboubakar","Choupo-Moting"]
+    ],
+    "🏟️ Équipes": [
+      ["Real Madrid","FC Barcelone"],
+      ["PSG","Marseille"],
+      ["Lions Indomptables","Éléphants de Côte d’Ivoire"],
+      ["Manchester United","Manchester City"],
+      ["Arsenal","Chelsea"],
+      ["Canon de Yaoundé","Union de Douala"],
+      ["Coton Sport","Fovu Baham"],
+      ["Juventus","AC Milan"]
+    ],
+    "📋 Règles et jeu": [
+      ["Penalty","Coup franc"],
+      ["Corner","Touche"],
+      ["Hors-jeu","Faute"],
+      ["Carton jaune","Carton rouge"],
+      ["Prolongations","Tirs au but"],
+      ["Mi-temps","Temps additionnel"],
+      ["Gardien","Défenseur"],
+      ["Capitaine","Entraîneur"],
+      ["Dribble","Passe"]
+    ],
+    "🏆 Compétitions": [
+      ["CAN","Coupe du monde"],
+      ["Ligue des champions","Ligue Europa"],
+      ["Ballon d’Or","Soulier d’Or"],
+      ["Championnat","Coupe nationale"],
+      ["Éliminatoires","Phase finale"]
+    ]
+  }
+}

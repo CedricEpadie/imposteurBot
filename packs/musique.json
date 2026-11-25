@@ -1,0 +1,46 @@
+{
+  "name": "Musique 🎵",
+  "description": "Genres, artistes, instruments et événements",
+  "categories": {
+    "🎶 Genres": [
+      ["Makossa","Bikutsi"],
+      ["Afrobeats","Amapiano"],
+      ["Coupé-décalé","Ndombolo"],
+      ["Rap","Slam"],
+      ["Rumba","Salsa"],
+      ["Reggae","Dancehall"],
+      ["Jazz","Blues"],
+      ["Gospel","Louange"],
+      ["Zouk","Kompa"]
+    ],
+    "🎤 Artistes": [
+      ["Fally Ipupa","Koffi Olomidé"],
+      ["Burna Boy","Wizkid"],
+      ["Locko","Tenor"],
+      ["Charlotte Dipanda","Mani Bella"],
+      ["Manu Dibango","Richard Bona"],
+      ["Salif Keita","Youssou N’Dour"],
+      ["Maître Gims","Dadju"],
+      ["Stanley Enow","Jovi"]
+    ],
+    "🎸 Instruments": [
+      ["Guitare","Basse"],
+      ["Piano","Orgue"],
+      ["Tam-tam","Balafon"],
+      ["Violon","Violoncelle"],
+      ["Trompette","Saxophone"],
+      ["Flûte","Clarinette"],
+      ["Batterie","Djembé"],
+      ["Mvet","Kora"]
+    ],
+    "🎪 Événements": [
+      ["Concert","Festival"],
+      ["Clip","Single"],
+      ["Album","Mixtape"],
+      ["Studio","Scène"],
+      ["Playlist","Radio"],
+      ["Karaoké","Chorale"],
+      ["DJ","Animateur"]
+    ]
+  }
+}

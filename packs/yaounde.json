@@ -1,0 +1,32 @@
+{
+  "name": "Yaoundé 🏙️",
+  "description": "Quartiers, lieux et vie quotidienne à Yaoundé",
+  "categories": {
+    "🏘️ Quartiers de Yaoundé": [
+      ["Biyem-Assi","Nsimeyong"],
+      ["Mvan","Mimboman"],
+      ["Essos","Nlongkak"],
+      ["Melen","Ngoa-Ekellé"],
+      ["Mendong","Obili"],
+      ["Bastos","Tsinga"],
+      ["Mvog-Mbi","Mvog-Ada"],
+      ["Ekounou","Mvolyé"]
+    ],
+    "📍 Lieux de Yaoundé": [
+      ["Marché Mokolo","Marché Mfoundi"],
+      ["Marché Mvog-Mbi","Marché Essos"],
+      ["Palais des Congrès","Palais des Sports"],
+      ["Université de Yaoundé I","Université de Yaoundé II"],
+      ["Mont Fébé","Mont Mbankolo"],
+      ["Aéroport de Nsimalen","Gare de Mvan"],
+      ["Hilton","Hôtel Mont Fébé"]
+    ],
+    "🚕 Transport": [
+      ["Taxi","Moto-taxi"],
+      ["Bus","Car"],
+      ["Gare","Aéroport"],
+      ["Carrefour","Rond-point"],
+      ["Embouteillage","Contrôle de police"]
+    ]
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "name": "Classiques",
+  "description": "Mots du quotidien : plats, animaux, objets…",
+  "categories": {
+    "🍽️ Plats et aliments": [
+      ["ndolé","koki"],
+      ["poulet DG","poulet braisé"],
+      ["plantain","banane douce"],
+      ["manioc","igname"],
+      ["mangue","papaye"],
+      ["safou","goyave"],
+      ["arachides","pistaches"],
+      ["beignets","croissants"],
+      ["achu","fufu"],
+      ["jus de gingembre","jus de bissap"]
+    ],
+    "🐾 Animaux": [
+      ["lion","tigre"],
+      ["éléphant","hippopotame"],
+      ["perroquet","perruche"],
+      ["serpent","lézard"],
+      ["crocodile","varan"],
+      ["poule","pintade"],
+      ["chèvre","mouton"],
+      ["singe","gorille"],
+      ["tortue","escargot"],
+      ["chien","loup"]
+    ],
+    "📍 Lieux": [
+      ["marché","supermarché"],
+      ["gare routière","aéroport"],
+      ["stade","gymnase"],
+      ["hôpital","pharmacie"],
+      ["université","lycée"],
+      ["plage","piscine"],
+      ["cybercafé","bibliothèque"],
+      ["boulangerie","pâtisserie"],
+      ["cinéma","théâtre"],
+      ["hôtel","auberge"]
+    ],
+    "🏠 Objets du quotidien": [
+      ["téléphone","tablette"],
+      ["parapluie","imperméable"],
+      ["ventilateur","climatiseur"],
+      ["frigo","congélateur"],
+      ["miroir","fenêtre"],
+      ["lunettes","jumelles"],
+      ["cuvette","seau"],
+      ["clé","cadenas"],
+      ["bougie","lampe torche"],
+      ["casserole","marmite"]
+    ],
+    "👔 Métiers": [
+      ["docteur","infirmier"],
+      ["professeur","instituteur"],
+      ["chauffeur de taxi","conducteur de moto-taxi"],
+      ["boucher","poissonnier"],
+      ["coiffeur","barbier"],
+      ["pilote","hôtesse de l’air"],
+      ["policier","gendarme"],
+      ["journaliste","présentateur"],
+      ["maçon","menuisier"],
+      ["avocat","juge"]
+    ],
+    "🎉 Loisirs et sports": [
+      ["football","handball"],
+      ["basket","volley"],
+      ["natation","plongée"],
+      ["danse","gym"],
+      ["ludo","dames"],
+      ["belote","poker"],
+      ["karaoké","concert"],
+      ["pêche","chasse"],
+      ["course à pied","vélo"],
+      ["film","série"]
+    ]
+  }
+}
