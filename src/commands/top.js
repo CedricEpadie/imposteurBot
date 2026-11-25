@@ -1,11 +1,12 @@
 // /imposteur top : classement de la session et classement général du groupe
 import { say } from '../whatsapp/messenger.js'
+import { count } from '../game/wording.js'
 import { tag } from '../core/utils.js'
 import { sessionRanking, overallRanking } from '../storage/scores.js'
 
 const MEDALS = ['🥇', '🥈', '🥉']
 const lines = (rows) =>
-  rows.map((r, i) => `${MEDALS[i] || '▫️'} ${tag(r.jid)} — ${r.points} pt${r.points > 1 ? 's' : ''} • ${r.wins} victoire(s) / ${r.games} partie(s)`)
+  rows.map((r, i) => `${MEDALS[i] || '▫️'} ${tag(r.jid)} — ${count(r.points, 'pt')} • ${count(r.wins, 'victoire')} / ${count(r.games, 'partie')}`)
 
 export default {
   name: 'top',

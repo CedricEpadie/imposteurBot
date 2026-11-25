@@ -86,6 +86,8 @@ export const boot = async ({ env = {}, seed = 1 } = {}) => {
   const has = (re) => texts().some((t) => re.test(t))
   const count = (re) => texts().filter((t) => re.test(t)).length
   const last = (re) => [...texts()].reverse().find((t) => re.test(t))
+  // SVG de la dernière image dont la légende correspond (le faux « sharp » renvoie le SVG tel quel) ; '' si aucune
+  const image = (re) => String([...sock.sent.slice(baseline)].reverse().find((r) => r.content.image && re.test(r.content.caption || ''))?.content.image || '')
   const dmOf = (n) => [...sock.sent.slice(baseline)].reverse().find((r) => r.jid === jid(n) && r.content.text)?.content.text || ''
 
   const waitFor = async (re, maxMs = 200000, step = 1000) => {
@@ -99,7 +101,7 @@ export const boot = async ({ env = {}, seed = 1 } = {}) => {
   // simule un plantage du processus : les minuteries disparaissent (la base, elle, survit)
   const crash = () => timers.clear()
 
-  return { sock, send, advance, flush, texts, has, count, last, dmOf, waitFor, mark, crash }
+  return { sock, send, advance, flush, texts, has, count, last, image, dmOf, waitFor, mark, crash }
 }
 
 // Ouvre une partie, fait rejoindre `n` joueurs, lance, et avance jusqu’au premier tour d’indices

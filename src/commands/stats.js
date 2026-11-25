@@ -1,5 +1,6 @@
 // /imposteur stats [@joueur] : statistiques d’un joueur dans ce groupe
 import { say } from '../whatsapp/messenger.js'
+import { count } from '../game/wording.js'
 import { num, tag } from '../core/utils.js'
 import { playerStats } from '../storage/scores.js'
 
@@ -15,7 +16,7 @@ export default {
     return say(
       chat,
       `📈 *Stats de ${tag(target.jid)}*\n\n🎮 Parties : ${s.games}\n🏆 Victoires : ${s.wins} (${pct} %)\n⭐ Points : ${s.points}\n` +
-        `🥷 Comme imposteur : ${s.asImposter} partie(s), ${s.impWins} victoire(s)\n🕵️ Comme civil : ${s.games - s.asImposter} partie(s), ${s.wins - s.impWins} victoire(s)`,
+        `🥷 Comme imposteur : ${count(s.asImposter, 'partie')}, ${count(s.impWins, 'victoire')}\n🕵️ Comme civil : ${count(s.games - s.asImposter, 'partie')}, ${count(s.wins - s.impWins, 'victoire')}`,
       [target.jid]
     )
   },

@@ -1,12 +1,15 @@
 // Phase 5 · Vote : on vote en mentionnant (@) le suspect ; dépouillement à la fin.
 import { config } from '../../config.js'
 import { say, typing } from '../../whatsapp/messenger.js'
+import { sayVisual } from '../../render/svg.js'
+import { voteChartSvg } from '../../render/voteChart.js'
 import { sleep, tag, num } from '../../core/utils.js'
 import { getGame, isActive } from '../store.js'
 import { phaseTimer, stopTimers } from '../lifecycle.js'
 import { persistGame } from '../persistence.js'
 import { alivePlayers, findAlive, jidsOf, listOf } from '../players.js'
 import { header } from '../phases-meta.js'
+import { pl, count, voteQuestion } from '../wording.js'
 import { scoreVotes, mancheLines } from '../scoring.js'
 import { resolveVote } from './verdict.js'
 
@@ -22,7 +25,7 @@ export const armVote = (g, seconds) =>
       const waiting = pendingVoters(g)
       return say(
         g.key,
-        `⏳ *${m} s* — ${g.votes.size}/${alivePlayers(g).length} vote(s).\n🕐 En attente : ${waiting.map((p) => tag(p.jid)).join(', ')}`,
+        `⏳ *${m} s* — ${g.votes.size}/${alivePlayers(g).length} ${pl(g.votes.size, 'vote')}.\n🕐 En attente : ${waiting.map((p) => tag(p.jid)).join(', ')}`,
         waiting.map((p) => p.jid)
       )
     },
@@ -37,7 +40,7 @@ export const startVote = async (key) => {
   armVote(g, voteSeconds)
   return say(
     key,
-    `${header('vote', g)}🗳️ *Qui est l’imposteur ?*\n\n${listOf(g)}\n\n` +
+    `${header('vote', g)}🗳️ *${voteQuestion(g)}*\n\n${listOf(g)}\n\n` +
       `👉 Pour voter, *mentionne (@)* ton suspect : un seul @ par message.\n` +
       `Répondre à un message ne compte pas • pas de vote pour soi-même • le dernier vote compte • les votes restent secrets jusqu’au dépouillement.\n` +
       `⏱️ *${voteSeconds} s* (le vote s’arrête dès que tout le monde a voté).`,
@@ -64,17 +67,19 @@ export const endVote = async (key) => {
   if (!ranking.length) return resolveVote(key, g, { accused: null, tie: false, ranking })
 
   const detail = [...g.votes.entries()].map(([voter, target]) => `• ${tag(voter.jid)} ➜ ${tag(target.jid)}`).join('\n')
-  const lines = ranking.map(([p, c]) => `${'🟥'.repeat(c)} ${tag(p.jid)} — ${c} vote(s)`).join('\n')
+  const lines = ranking.map(([p, c]) => `${'🟥'.repeat(c)} ${tag(p.jid)} — ${count(c, 'vote')}`).join('\n')
   const abstainers = pendingVoters(g)
   const [top, topCount] = ranking[0]
   const tie = ranking.length > 1 && ranking[1][1] === topCount
 
-  await say(
-    key,
-    `📊 *Résultat du vote*\n\n${lines}\n\n🔍 *Détail*\n${detail}` +
-      (abstainers.length ? `\n\n🙈 N’ont pas voté : ${abstainers.map((p) => tag(p.jid)).join(', ')}` : ''),
-    jidsOf(g)
-  )
+  const missing = abstainers.length ? `\n\n🙈 N’ont pas voté : ${abstainers.map((p) => tag(p.jid)).join(', ')}` : ''
+  // Graphique en image (barres + qui a voté pour qui) ; la légende garde les @mentions. Texte complet si l’image est impossible.
+  await sayVisual(key, {
+    svg: () => voteChartSvg(g, ranking, abstainers),
+    caption: `📊 *Résultat du vote*\n\n🔍 *Détail*\n${detail}${missing}`,
+    fallback: `📊 *Résultat du vote*\n\n${lines}\n\n🔍 *Détail*\n${detail}${missing}`,
+    mentions: jidsOf(g),
+  })
   if (g.format === 'rounds') {
     const pts = mancheLines(g)
     await say(key, pts.length ? `📈 *Points de la manche ${g.manche}*\n${pts.join('\n')}` : `📈 Aucun point marqué à la manche ${g.manche}.`, jidsOf(g))

@@ -7,6 +7,7 @@
 import { config } from '../config.js'
 import { tag } from '../core/utils.js'
 import { isImposter, isAlive } from './players.js'
+import { count } from './wording.js'
 
 const S = config.scoring
 
@@ -63,4 +64,4 @@ export const gameLines = (g) =>
     .map((p) => ({ p, pts: pointsOf(g, p) }))
     .filter((x) => x.pts > 0)
     .sort((a, b) => b.pts - a.pts)
-    .map(({ p, pts }) => `• ${tag(p.jid)} : ${pts} pt${pts > 1 ? 's' : ''}`)
+    .map(({ p, pts }) => `• ${tag(p.jid)} : ${count(pts, 'pt')}`)

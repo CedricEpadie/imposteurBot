@@ -11,6 +11,7 @@ import { hasId, jidsOf } from '../players.js'
 import { header } from '../phases-meta.js'
 import { getMode } from '../modes/index.js'
 import { clueLines } from '../recap.js'
+import { count } from '../wording.js'
 import { startDiscuss } from './discussion.js'
 
 const { clueRounds, clueSeconds } = config.game
@@ -31,7 +32,7 @@ export const askTurn = async (key) => {
     head =
       header('clues', g) +
       `Chacun donne *un seul mot* (pas de phrase) en rapport avec son mot secret, sans le dire ni répéter l’indice d’un autre.\n` +
-      `🔁 ${clueRounds} tour(s) • ⏱️ ${clueSeconds} s par joueur\n\n` +
+      `🔁 ${count(clueRounds, 'tour')} • ⏱️ ${clueSeconds} s par joueur\n\n` +
       `📋 *Ordre de passage*\n${g.order.map((p, i) => `${i + 1}. ${tag(p.jid)}`).join('\n')}\n\n`
   } else if (pos === 1) {
     head = `🔁 *Tour ${round}/${clueRounds}* — on repart dans le même ordre !\n\n`

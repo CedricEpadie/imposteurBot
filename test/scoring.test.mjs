@@ -16,8 +16,11 @@ test('partie classique : les civils trouvent l’imposteur → points de vote ju
   assert.ok(await b.waitFor(/FIN DE PARTIE/, 20000))
   const end = b.last(/FIN DE PARTIE/)
   assert.match(end, /Les civils gagnent/)
-  assert.match(end, /Points de la partie/)
-  assert.match(end, /Classement de la session/)
+  const svg = b.image(/FIN DE PARTIE/)
+  assert.match(svg, /POINTS DE LA PARTIE/)
+  assert.match(svg, /CLASSEMENT DE LA SESSION/)
+  assert.match(svg, /LES CIVILS GAGNENT/)
+  assert.ok(b.has(/Récap des indices/), 'les indices suivent en texte')
 
   // chaque civil : 1 (vote juste) + 2 (victoire) = 3 ; l’imposteur : 0
   for (const c of civils) assert.equal(playerStats(G, c).points, 3, `civil ${c}`)

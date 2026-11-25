@@ -1,5 +1,6 @@
 // /imposteur reset [tout] [confirmer] : efface les scores enregistrés (admin). Jamais les mots.
 import { config } from '../config.js'
+import { count } from '../game/wording.js'
 import { say } from '../whatsapp/messenger.js'
 import { num } from '../core/utils.js'
 import { isAdmin } from '../core/admin.js'
@@ -24,6 +25,6 @@ export default {
     }
     pending.delete(id)
     const n = resetScores(all ? null : chat)
-    return say(chat, `🗑️ Scores effacés (${n} résultat(s) supprimé(s)).`)
+    return say(chat, `🗑️ Scores effacés (${count(n, 'résultat supprimé', 'résultats supprimés')}).`)
   },
 }

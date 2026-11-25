@@ -51,7 +51,7 @@ test('format 2 à 5 joueurs : on élimine jusqu’à 3 joueurs, les imposteurs g
   const end = b.last(/FIN DE PARTIE/)
   assert.match(end, /L’imposteur gagne/)
   assert.match(end, /Il ne reste que \*3\* joueurs/)
-  assert.match(end, /imposteur gagnant|Points de la partie/)
+  assert.match(b.image(/FIN DE PARTIE/), /POINTS DE LA PARTIE/, 'le bilan en image détaille les points')
 })
 
 test('format 2 : démasquer le dernier imposteur donne la dernière chance de deviner le mot', async () => {
@@ -72,7 +72,7 @@ test('format 2 à 8 joueurs : 2 imposteurs ; en démasquer un fait continuer la 
 
   await roundVote(P, imposters[0])
   assert.ok(await b.waitFor(/Manche 2/, 120000), 'la partie continue')
-  assert.match(b.last(/Il reste encore \*1\* imposteur/), /imposteur/)
+  assert.match(b.last(/Il reste encore \*1 imposteur\*/), /1 imposteur/)
   assert.equal(getGame(G).phase === 'guess', false, 'pas de dernière chance tant qu’un imposteur reste')
   assert.equal(getGame(G).eliminated.size, 1)
   await b.send(G, PL[0], '/stop')

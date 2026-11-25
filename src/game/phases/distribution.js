@@ -9,6 +9,7 @@ import { jidsOf, listOf } from '../players.js'
 import { header } from '../phases-meta.js'
 import { getMode } from '../modes/index.js'
 import { askTurn } from './clues.js'
+import { modeLabel } from '../wording.js'
 
 const P = config.prefix
 const { readSeconds, dmDelaySeconds } = config.game
@@ -20,7 +21,7 @@ export const distributeRoles = async (key, g) => {
   const total = g.players.length
 
   const progress = (done, last) =>
-    `${header('dm', g)}👥 ${total} joueurs : ${listOf(g)}\n🏷️ Catégorie : ${g.category}\n🎮 Mode : ${mode.label}\n` +
+    `${header('dm', g)}👥 ${total} joueurs : ${listOf(g)}\n🏷️ Catégorie : ${g.category}\n🎮 Mode : ${modeLabel(g, mode)}\n` +
     (g.imposters.length > 1 ? `🥷 *${g.imposters.length} imposteurs* se cachent parmi vous !\n` : '') +
     (g.format === 'rounds' ? `🔁 Plusieurs manches : un joueur éliminé par manche, jusqu’à ${config.rounds.stopAt} joueurs.\n` : '') +
     `\n` +

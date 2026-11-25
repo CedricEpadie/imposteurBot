@@ -111,6 +111,12 @@ Le bot affiche les points de chaque manche (format 2), les points de la partie e
 `/imposteur stats [@joueur]` les statistiques d'un joueur (parties, victoires, points, rôle imposteur / civil).
 Les barèmes sont dans `src/config.js` (`scoring`).
 
+### Identité visuelle (une seule charte)
+Toutes les images (cartes de rôle, tableau des indices, règles de `/imposteur aide`, graphique du dépouillement, bilan de fin de partie, `/imposteur etat`) sont dessinées avec `src/render/theme.js` (palette, police, largeur) et `src/render/kit.js` (titres, lignes, pastilles, barres, signature). Pour changer l'apparence de tout le jeu, modifier `theme.js`. Chaque image a un repli texte si `sharp` est absent ou si le rendu échoue (`sayVisual`).
+
+### Vocabulaire singulier / pluriel
+Les messages qui parlent de l'imposteur passent par `src/game/wording.js` (`ie`, `pl`, `count`, `voteQuestion`…) : avec 2 imposteurs on lit « les imposteurs », « Il reste encore *1 imposteur* », etc.
+
 ### Persistance et reprise après plantage
 
 Tout est enregistré dans une base **SQLite** (`data/imposteur.db`) : scores et statistiques, réglages par groupe, et **l'état de la partie en cours**
@@ -184,7 +190,8 @@ src/
 │   ├── messenger.js       say / sayImage / editMsg / typing
 │   ├── identity.js        qui écrit (jid numéro / LID, nom affiché)
 │   └── socket.js          référence au socket courant
-├── render/              images : svg.js (SVG → JPEG, sharp), card.js (cartes de rôle), board.js (tableau des indices)
+├── render/              images, toutes sur la même charte : theme.js (couleurs, police), kit.js (briques SVG), svg.js (SVG → JPEG + envoi avec repli texte),
+│                        card.js (cartes de rôle), board.js (tableau), rules.js (règles), voteChart.js (dépouillement), summary.js (bilan), statusCard.js (/etat)
 ├── roles/               envoi des rôles en privé (delivery.js) et diagnostic (selfTest.js)
 ├── game/                le jeu lui-même, sans dépendance directe à Baileys
 │   ├── modes/             un fichier par mode (classique, proche) + registre

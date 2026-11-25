@@ -11,6 +11,7 @@ import { getMode, modeUsage } from '../modes/index.js'
 import { setupGame } from '../round.js'
 import { activePackIds } from '../words.js'
 import { distributeRoles } from './distribution.js'
+import { count, pl } from '../wording.js'
 
 const P = config.prefix
 const { minPlayers, maxPlayers, lobbySeconds } = config.game
@@ -18,7 +19,7 @@ const { rounds } = config
 
 export const FORMATS = {
   single: '1️⃣ Un seul imposteur : un seul vote, et la partie est jouée',
-  rounds: `2️⃣ Plusieurs imposteurs / manches : le groupe élimine un suspect par manche jusqu’à ${rounds.stopAt} joueurs restants (${rounds.twoImpostersFrom} joueurs ou plus : 2 imposteurs)`,
+  rounds: `2️⃣ Plusieurs manches : le groupe élimine un suspect par manche jusqu’à ${rounds.stopAt} joueurs restants (1 imposteur, ou 2 dès ${rounds.twoImpostersFrom} joueurs)`,
 }
 
 export const formatQuestion = (g) =>
@@ -44,7 +45,7 @@ export const openLobby = async (key, me, modeId) => {
   const packs = activePackIds(key)
   await say(
     key,
-    `${header('lobby')}🕵️ *L’IMPOSTEUR*\nUn mot secret est donné à tous les joueurs… sauf à l’imposteur !\n\n` +
+    `${header('lobby')}🕵️ *L’IMPOSTEUR*\nUn mot secret est donné à tous les joueurs… sauf à l’imposteur (ou aux 2 imposteurs en format 2 dès ${rounds.twoImpostersFrom} joueurs) !\n\n` +
       `🎮 Mode : ${mode.label}\n(changer : ${modeUsage(P)})\n` +
       `📦 Mots : ${packs.length ? packs.join(', ') : 'tous les packs'} (changer : *${P}imposteur packs*)\n\n` +
       `👥 Joueurs (1/${maxPlayers}) : ${tag(me.jid)}\n` +
@@ -64,7 +65,7 @@ export const setFormat = async (g, format) => {
   return say(
     g.key,
     format === 'rounds'
-      ? `✅ Format *2* : plusieurs manches.\nLe groupe élimine un suspect par manche jusqu’à ${rounds.stopAt} joueurs restants (minimum ${rounds.minPlayers} joueurs ; 2 imposteurs dès ${rounds.twoImpostersFrom}).`
+      ? `✅ Format *2* : plusieurs manches.\nLe groupe élimine un suspect par manche jusqu’à ${rounds.stopAt} joueurs restants (minimum ${rounds.minPlayers} joueurs ; 1 imposteur, ou 2 dès ${rounds.twoImpostersFrom} joueurs).`
       : `✅ Format *1* : un seul imposteur, un seul vote.`
   )
 }
@@ -88,7 +89,7 @@ export const joinLobby = async (g, me) => {
   await say(
     key,
     `✅ ${tag(me.jid)} rejoint la partie ! (${g.players.length}/${maxPlayers})\n👥 ${listOf(g)}\n` +
-      (missing > 0 ? `⏳ Il manque encore *${missing}* joueur(s) pour démarrer.` : `✅ Assez de joueurs ! Le lanceur peut taper *${P}imposteur go*.`),
+      (missing > 0 ? `⏳ Il manque encore *${missing}* ${pl(missing, 'joueur')} pour démarrer.` : `✅ Assez de joueurs ! Le lanceur peut taper *${P}imposteur go*.`),
     jidsOf(g)
   )
   if (g.players.length >= maxPlayers) {
@@ -105,7 +106,7 @@ export const beginGame = async (key, manual = false) => {
 
   if (g.players.length < minPlayers) {
     if (manual) {
-      return say(key, `⛔ Il manque encore *${minPlayers - g.players.length}* joueur(s) (${g.players.length}/${minPlayers} minimum).`)
+      return say(key, `⛔ Il manque encore *${minPlayers - g.players.length}* ${pl(minPlayers - g.players.length, 'joueur')} (${g.players.length}/${minPlayers} minimum).`)
     }
     endGame(g)
     return say(key, `😕 Pas assez de joueurs (${g.players.length}/${minPlayers} minimum). Partie annulée.`)

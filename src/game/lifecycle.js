@@ -15,6 +15,7 @@ export const phaseTimer = (g, seconds, onEnd, { marks = [], tick } = {}) => {
   stopTimers(g)
   const phase = g.phase
   g.deadline = Date.now() + seconds * 1000
+  g.phaseTotal = seconds // durée totale de l’étape (barre de /etat)
   persistGame(g) // point de sauvegarde : une partie interrompue reprend à cette phase
   for (const m of marks) {
     if (m >= seconds || !tick) continue
