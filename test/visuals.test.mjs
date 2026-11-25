@@ -87,3 +87,26 @@ test('un seul imposteur : le singulier est conservé', async () => {
   assert.ok(await b.waitFor(/Qui est l’imposteur \?/, 20000))
   await b.send(G, P[0], '/stop')
 })
+
+test('15 joueurs : la salle accepte jusqu’à 15 et refuse le 16e', async () => {
+  const { config } = await import('../src/config.js')
+  assert.equal(config.game.maxPlayers, 15)
+  const { P } = await startGame(b, { n: 15, format: 2 })
+  const g = getGame(G)
+  assert.equal(g.players.length, 15)
+  assert.equal(g.imposters.length, 2)
+  await playClues(b)
+  const svg = b.image(/Tableau des indices/)
+  assert.ok(svg.includes('Joueur ' + P[14].slice(-2)), 'les 15 joueurs figurent sur le tableau')
+  await b.send(G, P[0], '/stop')
+})
+
+test('le 16e joueur est refusé', async () => {
+  b.mark()
+  await b.send(G, PL[0], '/imposteur')
+  for (const p of PL.slice(1, 15)) await b.send(G, p, '/join')
+  assert.equal(getGame(G)?.players.length, 15)
+  await b.send(G, PL[15], '/join')
+  assert.ok(b.has(/complète|15 joueurs max/) || getGame(G)?.phase !== 'lobby')
+  await b.send(G, PL[0], '/stop')
+})

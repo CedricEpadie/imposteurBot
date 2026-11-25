@@ -63,7 +63,7 @@ export const config = {
   // Réglages du jeu (modifie à ta guise)
   game: {
     minPlayers: 3,
-    maxPlayers: 10,
+    maxPlayers: 15,
     lobbySeconds: 90, // temps pour rejoindre avant le lancement automatique
     readSeconds: 20, // temps pour lire son rôle avant les indices
     clueRounds: 2, // nombre de tours d’indices

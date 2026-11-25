@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 
 export const G = '120363000000000001@g.us'
-export const PL = Array.from({ length: 12 }, (_, i) => `2376000000${String(i + 1).padStart(2, '0')}`)
+export const PL = Array.from({ length: 16 }, (_, i) => `2376000000${String(i + 1).padStart(2, '0')}`)
 export const jid = (n) => `${n}@s.whatsapp.net`
 
 export const boot = async ({ env = {}, seed = 1 } = {}) => {
