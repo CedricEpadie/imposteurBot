@@ -252,6 +252,6 @@ Format 1 : toujours 1. Format 2 : 1 imposteur, 2 dès 8 joueurs, 3 dès 12 (`con
 
 ### Aléatoire (`core/random.js`, `game/fairness.js`, `game/words.js`)
 - **Source** : aléa cryptographique (`crypto.randomInt`), plus de `Math.random`. Les tests injectent une source déterministe (`setRandomSource`).
-- **Imposteurs** : tirage pondéré selon l'historique en base (donc persistant). Poids selon le nombre de parties écoulées depuis le dernier rôle d'imposteur : 0,2 (à la partie précédente), 0,5, 1, 1,6, 2,2, 2,7, 3 (jamais). Personne n'est jamais exclu. Barème dans `fairness.js` (`WEIGHTS`).
+- **Imposteurs** : tirage pondéré selon l'historique en base (donc persistant). Poids selon le nombre de parties *jouées par ce joueur* depuis son dernier rôle d'imposteur : 0,4 (à sa dernière partie), 0,7, 1, 1,25, 1,5, 1,7, 1,8. Un joueur sans historique (nouveau venu) reste neutre (poids 1). Poids bornés : rapport max 4,5, personne n'est exclu ni assuré. Barème dans `fairness.js` (`WEIGHTS`).
 - **Mots** : mémoire persistante des paires jouées (pas de répétition avant épuisement, même après redémarrage) ; on tire d'abord une catégorie (hors les 3 dernières), puis une paire ; mots vus dans les dernières parties évités ; mot des civils / de l'imposteur tiré à pile ou face.
 - **Ordre de parole** : mélange complet, avec un premier orateur toujours différent de la partie précédente. L'envoi des cartes privées se fait aussi dans un ordre aléatoire.

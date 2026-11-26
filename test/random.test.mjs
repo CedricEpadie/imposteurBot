@@ -48,22 +48,47 @@ test('imposteurs : répartition équitable sur 500 parties et peu de répétitio
   const expected = N / players.length
   for (const [num, c] of counts) assert.ok(c > expected * 0.75 && c < expected * 1.25, `${num} imposteur ${c} fois (attendu ≈ ${expected})`)
   // sans correction, ~12,5 % de répétitions d’affilée
-  assert.ok(repeats / N < 0.06, `répétitions d’affilée : ${((100 * repeats) / N).toFixed(1)} %`)
+  assert.ok(repeats / N < 0.10, `répétitions d’affilée : ${((100 * repeats) / N).toFixed(1)} %`)
 })
 
-test('imposteur : un joueur qui ne l’a jamais été est favorisé, mais personne n’est exclu', () => {
+test('nouveau venu : jamais assuré d’être imposteur, jamais exclu non plus', () => {
   const players = mkPlayers(6)
-  const key = 'jamais@g.us'
-  // tout le monde sauf le dernier a déjà été imposteur à la partie précédente
-  recordGame(key, 'h0', players.map((p, i) => ({ num: p.num, jid: p.jid, name: p.name, role: i < 5 ? 'imposteur' : 'civil', won: false, points: 0 })), 1)
+  const key = 'nouveau@g.us'
+  // les 5 anciens étaient tous imposteurs à la partie précédente ; le 6e n’a jamais joué ici
+  recordGame(key, 'h0', players.slice(0, 5).map((p) => ({ num: p.num, jid: p.jid, name: p.name, role: 'imposteur', won: false, points: 0 })), 1)
   const counts = new Map(players.map((p) => [p.num, 0]))
-  for (let i = 0; i < 3000; i++) {
+  const N = 4000
+  for (let i = 0; i < N; i++) {
     const g = { key, players, format: 'single' }
     setupGame(g)
     counts.set(g.imposters[0].num, counts.get(g.imposters[0].num) + 1)
   }
-  assert.ok(counts.get(players[5].num) > counts.get(players[0].num) * 3, 'le jamais-imposteur sort bien plus souvent')
+  const share = counts.get(players[5].num) / N
+  assert.ok(share > 0.2 && share < 0.45, `le nouveau venu est imposteur dans ${(100 * share).toFixed(0)} % des cas (≈ 33 % attendu)`)
   for (const c of counts.values()) assert.ok(c > 0, 'tout le monde garde une chance')
+})
+
+test('un nouveau venu seul face à des joueurs « en retard » n’est pas écrasé non plus', () => {
+  const players = mkPlayers(6)
+  const key = 'retard@g.us'
+  // 5 joueurs ont joué 8 parties sans jamais être imposteur (poids max) ; le 6e est neuf (poids neutre)
+  for (let i = 0; i < 8; i++) recordGame(key, `r${i}`, players.slice(0, 5).map((p) => ({ num: p.num, jid: p.jid, name: p.name, role: 'civil', won: true, points: 0 })), i + 1)
+  let newcomer = 0
+  const N = 4000
+  for (let i = 0; i < N; i++) {
+    const g = { key, players, format: 'single' }
+    setupGame(g)
+    if (g.imposters[0] === players[5]) newcomer++
+  }
+  const share = newcomer / N
+  assert.ok(share > 0.06 && share < 0.16, `${(100 * share).toFixed(0)} % (≈ 10 % attendu)`)
+})
+
+test('poids : bornés et neutres pour un joueur sans historique', async () => {
+  const { WEIGHTS, NEUTRAL } = await import('../src/game/fairness.js')
+  assert.equal(NEUTRAL, 1)
+  assert.ok(Math.max(...WEIGHTS) / Math.min(...WEIGHTS) <= 5, 'rapport maximal entre deux joueurs ≤ 5')
+  assert.ok(Math.min(...WEIGHTS) > 0, 'personne n’est exclu')
 })
 
 test('mots : aucune paire rejouée avant épuisement, catégories variées, mots récents évités', async () => {
