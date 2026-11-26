@@ -48,7 +48,10 @@ test('l’imposteur qui survit marque des points ; le classement cumule', async 
   await b.send(G, PL[1], '/top')
   assert.match(b.last(/Classement de l’imposteur/), /Session en cours[\s\S]*Général/)
   await b.send(G, PL[1], '/stats')
-  assert.match(b.last(/Stats de/), /Parties : 2/)
+  const card = b.image(/Profil de/)
+  assert.match(card, /PROFIL DE JOUEUR/)
+  assert.match(card, /EN IMPOSTEUR/)
+  assert.match(card, /EN CIVIL/)
 })
 
 test('reset : réservé aux admins, avec confirmation, n’efface que les scores', async () => {

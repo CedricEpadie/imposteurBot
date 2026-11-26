@@ -6,8 +6,12 @@ import { alivePlayers } from './players.js'
 
 const { rounds } = config
 
-// Nombre d’imposteurs : 1, ou 2 dès `twoImpostersFrom` joueurs dans le format « plusieurs manches »
-export const imposterCount = (g) => (g.format === 'rounds' && g.players.length >= rounds.twoImpostersFrom ? 2 : 1)
+// Nombre d’imposteurs : 1 ; en format « plusieurs manches » 2 dès `twoImpostersFrom` joueurs et 3 dès `threeImpostersFrom`
+export const imposterCount = (g) => {
+  if (g.format !== 'rounds') return 1
+  const n = g.players.length
+  return n >= rounds.threeImpostersFrom ? 3 : n >= rounds.twoImpostersFrom ? 2 : 1
+}
 
 export const setupGame = (g) => {
   const [category, word, closeWord] = pickPair(g.key)

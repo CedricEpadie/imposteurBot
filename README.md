@@ -243,3 +243,9 @@ les 2 imposteurs, la reprise après plantage, les packs, les commandes admin et 
 Définis `TEST_VERBOSE=1` pour voir les logs du bot pendant les tests.
 ### Lisibilité des images
 Les images sont pensées pour un écran de téléphone (affichées ~2,4 fois plus petites que leur largeur de 900 px) : aucun texte sous 22 px, titres 48 px, valeurs clés 28–34 px, contrastes élevés, couleurs sémantiques (rouge = imposteur/danger, vert = civils, or = indices/points, bleu = information). Le bilan ne détaille que les joueurs qui ont marqué ; les autres tiennent sur une ligne.
+
+### Carte de profil (`/imposteur stats [@joueur]`)
+Image à la charte (`render/profile.js`) : rang dans le groupe, parties / victoires / points, bilan en imposteur et en civil, série de victoires en cours et meilleure série, forme des 10 dernières parties. Tout est calculé depuis la table `results` (`playerStats`), sans changement de base. Texte complet si l'image est impossible. Alias : `/imposteur profil`.
+
+### Nombre d'imposteurs
+Format 1 : toujours 1. Format 2 : 1 imposteur, 2 dès 8 joueurs, 3 dès 12 (`config.rounds.twoImpostersFrom` / `threeImpostersFrom`).

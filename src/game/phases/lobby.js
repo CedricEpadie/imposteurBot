@@ -11,7 +11,7 @@ import { getMode, modeUsage } from '../modes/index.js'
 import { setupGame } from '../round.js'
 import { activePackIds } from '../words.js'
 import { distributeRoles } from './distribution.js'
-import { count, pl } from '../wording.js'
+import { count, pl, impostersRule } from '../wording.js'
 
 const P = config.prefix
 const { minPlayers, maxPlayers, lobbySeconds } = config.game
@@ -19,7 +19,7 @@ const { rounds } = config
 
 export const FORMATS = {
   single: '1️⃣ Un seul imposteur : un seul vote, et la partie est jouée',
-  rounds: `2️⃣ Plusieurs manches : le groupe élimine un suspect par manche jusqu’à ${rounds.stopAt} joueurs restants (1 imposteur, ou 2 dès ${rounds.twoImpostersFrom} joueurs)`,
+  rounds: `2️⃣ Plusieurs manches : le groupe élimine un suspect par manche jusqu’à ${rounds.stopAt} joueurs restants (${impostersRule()})`,
 }
 
 export const formatQuestion = (g) =>
@@ -45,7 +45,7 @@ export const openLobby = async (key, me, modeId) => {
   const packs = activePackIds(key)
   await say(
     key,
-    `${header('lobby')}🕵️ *L’IMPOSTEUR*\nUn mot secret est donné à tous les joueurs… sauf à l’imposteur (ou aux 2 imposteurs en format 2 dès ${rounds.twoImpostersFrom} joueurs) !\n\n` +
+    `${header('lobby')}🕵️ *L’IMPOSTEUR*\nUn mot secret est donné à tous les joueurs… sauf à l’imposteur (ou aux imposteurs : ${impostersRule()}, en format 2) !\n\n` +
       `🎮 Mode : ${mode.label}\n(changer : ${modeUsage(P)})\n` +
       `📦 Mots : ${packs.length ? packs.join(', ') : 'tous les packs'} (changer : *${P}imposteur packs*)\n\n` +
       `👥 Joueurs (1/${maxPlayers}) : ${tag(me.jid)}\n` +
@@ -65,7 +65,7 @@ export const setFormat = async (g, format) => {
   return say(
     g.key,
     format === 'rounds'
-      ? `✅ Format *2* : plusieurs manches.\nLe groupe élimine un suspect par manche jusqu’à ${rounds.stopAt} joueurs restants (minimum ${rounds.minPlayers} joueurs ; 1 imposteur, ou 2 dès ${rounds.twoImpostersFrom} joueurs).`
+      ? `✅ Format *2* : plusieurs manches.\nLe groupe élimine un suspect par manche jusqu’à ${rounds.stopAt} joueurs restants (minimum ${rounds.minPlayers} joueurs ; ${impostersRule()}).`
       : `✅ Format *1* : un seul imposteur, un seul vote.`
   )
 }

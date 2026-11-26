@@ -1,5 +1,6 @@
 // Vocabulaire : accords singulier / pluriel des messages (1 imposteur ou plusieurs).
 // Tous les textes qui parlent « du » ou « des » imposteurs passent par ici, jamais en dur.
+import { config } from '../config.js'
 import { aliveImposters } from './players.js'
 
 // « 1 vote », « 2 votes » (le pluriel s’applique dès 2)
@@ -25,6 +26,9 @@ export const voteQuestion = (g) => {
   if (k > 1) return `Qui sont les *${k} imposteurs* ? Accuse-en un !`
   return multi(g) ? 'Il reste *1 imposteur* : qui est-ce ?' : 'Qui est l’imposteur ?'
 }
+
+// Règle du nombre d’imposteurs, pour les textes d’aide : « 1 imposteur, 2 dès 8 joueurs, 3 dès 12 »
+export const impostersRule = () => `1 imposteur, 2 dès ${config.rounds.twoImpostersFrom} joueurs, 3 dès ${config.rounds.threeImpostersFrom}`
 
 // Annonce d’une élimination, selon le rôle révélé
 export const roleReveal = (wasImposter) => (wasImposter ? 'un *imposteur* 🥷' : 'un *civil* 😬')

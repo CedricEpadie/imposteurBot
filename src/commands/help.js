@@ -3,6 +3,7 @@ import { config } from '../config.js'
 import { sayVisual } from '../render/svg.js'
 import { rulesSvg, rulesCaption } from '../render/rules.js'
 import { listModes } from '../game/modes/index.js'
+import { impostersRule } from '../game/wording.js'
 
 const P = config.prefix
 const { minPlayers, maxPlayers, clueRounds } = config.game
@@ -24,7 +25,7 @@ export default {
         `3️⃣ ${clueRounds} tours : chacun son tour donne un indice en *un seul mot* (pas de phrase), sans dire son mot ni répéter l’indice d’un autre.\n` +
         `4️⃣ Débat libre (avec le tableau des indices), puis vote : mentionnez (@) votre suspect.\n` +
         `5️⃣ Un imposteur démasqué peut encore gagner en devinant le mot !\n` +
-        `🔁 Le lanceur peut choisir le format *2* : plusieurs manches, un joueur éliminé à chaque vote jusqu’à ${config.rounds.stopAt} joueurs (1 imposteur, ou 2 dès ${config.rounds.twoImpostersFrom} joueurs).\n` +
+        `🔁 Le lanceur peut choisir le format *2* : plusieurs manches, un joueur éliminé à chaque vote jusqu’à ${config.rounds.stopAt} joueurs (${impostersRule()}).\n` +
         `⭐ Points : vote juste +${config.scoring.rightVote} • victoire des civils +${config.scoring.civilsWin} • imposteur gagnant +${config.scoring.imposterWin} • mot deviné +${config.scoring.imposterGuess}\n\n` +
         `📩 Rôle non reçu ? *${P}imposteur mot* en privé au bot.\n` +
         `📊 *${P}imposteur etat* : où en est la partie\n` +

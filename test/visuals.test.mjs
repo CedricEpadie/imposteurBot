@@ -93,7 +93,7 @@ test('15 joueurs : la salle accepte jusqu’à 15 et refuse le 16e', async () =>
   const { P } = await startGame(b, { n: 15, format: 2 })
   const g = getGame(G)
   assert.equal(g.players.length, 15)
-  assert.equal(g.imposters.length, 2)
+  assert.equal(g.imposters.length, 3)
   await playClues(b)
   const svg = b.image(/Tableau des indices/)
   assert.ok(svg.includes('Joueur ' + P[14].slice(-2)), 'les 15 joueurs figurent sur le tableau')
@@ -119,4 +119,52 @@ test('pseudos : lettres décoratives normalisées, alphabets et emojis conservé
   assert.equal((cleanName('Z\u0303\u0334\u0301\u0489algo').match(/\p{M}/gu) || []).length, 1, 'un seul signe combinant conservé')
   assert.equal(clip('😀😀😀😀', 3), '😀😀…', 'jamais un emoji coupé en deux')
   assert.ok(fit('小明小明小明小明', 200, 30, 12) < fit('abcdefgh', 200, 30, 12), 'les caractères larges réduisent la taille')
+})
+
+test('nombre d’imposteurs selon les joueurs : 1 (<8), 2 (8-11), 3 (12+)', async () => {
+  for (const [n, expected] of [[7, 1], [8, 2], [11, 2], [12, 3], [15, 3]]) {
+    const { P } = await startGame(b, { n, format: 2 })
+    assert.equal(getGame(G).imposters.length, expected, `${n} joueurs → ${expected} imposteur(s)`)
+    await b.send(G, P[0], '/stop')
+  }
+  const { P } = await startGame(b, { n: 12, format: 1 })
+  assert.equal(getGame(G).imposters.length, 1, 'format 1 : toujours un seul imposteur')
+  await b.send(G, P[0], '/stop')
+})
+
+test('3 imposteurs : partie complète, textes au pluriel, 2 éliminations puis le dernier devine', async () => {
+  const { P, imposters } = await startGame(b, { n: 12, format: 2 })
+  assert.equal(imposters.length, 3)
+  const from = b.texts().length
+  await playClues(b)
+  await voteFor(b, P, imposters[0])
+  assert.ok(await b.waitFor(/Manche 2/, 120000))
+  assert.ok(b.has(/Il reste encore \*2 imposteurs\*/))
+  const spoken = b.texts().slice(from).join('\n')
+  assert.doesNotMatch(spoken, /l’imposteur(?! restant)|un imposteur[^s]/)
+  await b.send(G, P[0], '/stop')
+})
+
+test('profil : séries de victoires, rang et forme calculés depuis l’historique', async () => {
+  const { recordGame, playerStats } = await import('../src/storage/scores.js')
+  const grp = 'profil@g.us'
+  const row = (num, role, won, points) => ({ num, jid: `${num}@s.whatsapp.net`, name: num === '111' ? 'Aïcha 🔥' : null, role, won, points })
+  // 111 : G G P G G G (série en cours 3, meilleure 3) ; 222 : P P G
+  const games = [[true, true], [true, false], [false, true], [true, true], [true, false], [true, false]]
+  games.forEach(([w1], i) => recordGame(grp, `p${i}`, [row('111', i % 2 ? 'imposteur' : 'civil', w1, w1 ? 3 : 0), row('222', 'civil', i === 5, i === 5 ? 2 : 0)], 1000 + i))
+  const s = playerStats(grp, '111')
+  assert.equal(s.games, 6)
+  assert.equal(s.streak, 3)
+  assert.equal(s.bestStreak, 3)
+  assert.equal(s.rank, 1)
+  assert.equal(s.players, 2)
+  assert.equal(s.asImposter + s.civGames, 6)
+  assert.equal(s.impWins + s.civWins, s.wins)
+  assert.equal(s.form.length, 6)
+  assert.equal(s.name, 'Aïcha 🔥')
+  const { profileSvg } = await import('../src/render/profile.js')
+  const svg = profileSvg(s, s.name)
+  assert.match(svg, /1er sur 2/)
+  assert.match(svg, /victoires d’affilée/)
+  assert.equal(playerStats(grp, '999'), null)
 })

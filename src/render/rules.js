@@ -1,5 +1,6 @@
 // Carte des règles (/imposteur aide) : image construite sur la charte.
 import { config } from '../config.js'
+import { impostersRule } from '../game/wording.js'
 import { listModes } from '../game/modes/index.js'
 import { C, W } from './theme.js'
 import { canvas, heading, section, t, rect, badge, pill, wrap } from './kit.js'
@@ -30,9 +31,8 @@ export const rulesData = () => {
 export const rulesSvg = () => {
   const { steps, points, variants } = rulesData()
   const { minPlayers, maxPlayers } = config.game
-  const { twoImpostersFrom } = config.rounds
   let y = 160
-  let body = heading('RÈGLES DU JEU', `${minPlayers} à ${maxPlayers} joueurs · 2 imposteurs dès ${twoImpostersFrom}`, C.gold, { y: 80 })
+  let body = heading('RÈGLES DU JEU', `${minPlayers} à ${maxPlayers} joueurs · ${impostersRule()}`, C.gold, { y: 80 })
 
   steps.forEach(([title, text], i) => {
     const lines = wrap(text, 50)

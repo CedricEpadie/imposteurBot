@@ -41,16 +41,42 @@ export const sessionRanking = (groupJid, limit = 10, now = Date.now()) => {
 // Classement général du groupe (depuis le dernier effacement)
 export const overallRanking = (groupJid, limit = 10) => getDb().prepare(RANKING).all(groupJid, 0, limit)
 
-// Statistiques d’un joueur dans un groupe : { games, wins, points, asImposter, impWins } ou null
+// Séries de victoires à partir de l’historique (du plus ancien au plus récent)
+const streaks = (wonList) => {
+  let best = 0
+  let run = 0
+  for (const w of wonList) {
+    run = w ? run + 1 : 0
+    best = Math.max(best, run)
+  }
+  return { current: run, best }
+}
+
+// Statistiques d’un joueur dans un groupe, ou null s’il n’a pas fini de partie :
+// { games, wins, points, asImposter, impWins, civGames, civWins, streak, bestStreak, form[{won, role}] (10 dernières, récente en dernier),
+//   rank, players (joueurs classés dans le groupe), name (dernier pseudo connu) }
 export const playerStats = (groupJid, num) => {
-  const row = getDb()
-    .prepare(
-      `SELECT COUNT(*) AS games, SUM(won) AS wins, SUM(points) AS points,
-              SUM(role = 'imposteur') AS asImposter, SUM(role = 'imposteur' AND won = 1) AS impWins
-       FROM results WHERE group_jid = ? AND num = ?`
-    )
-    .get(groupJid, num)
-  return row && row.games ? row : null
+  const history = getDb().prepare('SELECT role, won, points, name FROM results WHERE group_jid = ? AND num = ? ORDER BY id').all(groupJid, num)
+  if (!history.length) return null
+  const wins = history.filter((r) => r.won).length
+  const imp = history.filter((r) => r.role === 'imposteur')
+  const { current, best } = streaks(history.map((r) => r.won))
+  const ranking = overallRanking(groupJid, 10000)
+  return {
+    games: history.length,
+    wins,
+    points: history.reduce((n, r) => n + r.points, 0),
+    asImposter: imp.length,
+    impWins: imp.filter((r) => r.won).length,
+    civGames: history.length - imp.length,
+    civWins: wins - imp.filter((r) => r.won).length,
+    streak: current,
+    bestStreak: best,
+    form: history.slice(-10).map((r) => ({ won: !!r.won, role: r.role })),
+    rank: ranking.findIndex((r) => r.num === num) + 1,
+    players: ranking.length,
+    name: [...history].reverse().find((r) => r.name)?.name || null,
+  }
 }
 
 // Efface les scores d’un groupe (ou de tous si groupJid = null). Retourne le nombre de lignes supprimées.

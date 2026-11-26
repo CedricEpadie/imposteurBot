@@ -48,7 +48,8 @@ export const config = {
   rounds: {
     minPlayers: 4, // en dessous, la partie reste à un seul vote
     stopAt: 3, // la partie s’arrête (victoire des imposteurs) quand il reste ce nombre de joueurs
-    twoImpostersFrom: 8, // 2 imposteurs à partir de ce nombre de joueurs
+    twoImpostersFrom: 8, // 2 imposteurs à partir de ce nombre de joueurs (format « plusieurs manches »)
+    threeImpostersFrom: 12, // 3 imposteurs à partir de ce nombre de joueurs
     maxManches: 8, // garde-fou (égalités en boucle)
   },
 
