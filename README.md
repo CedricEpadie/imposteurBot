@@ -255,3 +255,6 @@ Format 1 : toujours 1. Format 2 : 1 imposteur, 2 dès 8 joueurs, 3 dès 12 (`con
 - **Imposteurs** : tirage pondéré selon l'historique en base (donc persistant). Poids selon le nombre de parties *jouées par ce joueur* depuis son dernier rôle d'imposteur : 0,4 (à sa dernière partie), 0,7, 1, 1,25, 1,5, 1,7, 1,8. Un joueur sans historique (nouveau venu) reste neutre (poids 1). Poids bornés : rapport max 4,5, personne n'est exclu ni assuré. Barème dans `fairness.js` (`WEIGHTS`).
 - **Mots** : mémoire persistante des paires jouées (pas de répétition avant épuisement, même après redémarrage) ; on tire d'abord une catégorie (hors les 3 dernières), puis une paire ; mots vus dans les dernières parties évités ; mot des civils / de l'imposteur tiré à pile ou face.
 - **Ordre de parole** : mélange complet, avec un premier orateur toujours différent de la partie précédente. L'envoi des cartes privées se fait aussi dans un ordre aléatoire.
+
+### Classement en image (`/imposteur top`)
+Podium à la charte (`render/ranking.js`) : 1er au centre sur la marche la plus haute, 2e à gauche, 3e à droite, puis les rangs suivants en liste (10 au plus) et le bloc « Session en cours » (5 au plus). Fonctionne dès 1 joueur classé. Texte complet avec @mentions si l'image est impossible.

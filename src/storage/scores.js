@@ -26,7 +26,8 @@ export const recordGame = (groupJid, gameId, rows, now = Date.now()) => {
 }
 
 const RANKING = `
-  SELECT num, MAX(jid) AS jid, SUM(points) AS points, COUNT(*) AS games, SUM(won) AS wins
+  SELECT num, MAX(jid) AS jid, SUM(points) AS points, COUNT(*) AS games, SUM(won) AS wins,
+    (SELECT r2.name FROM results r2 WHERE r2.group_jid = results.group_jid AND r2.num = results.num AND r2.name IS NOT NULL ORDER BY r2.id DESC LIMIT 1) AS name
   FROM results WHERE group_jid = ? AND ts >= ?
   GROUP BY num ORDER BY points DESC, wins DESC, games ASC LIMIT ?`
 

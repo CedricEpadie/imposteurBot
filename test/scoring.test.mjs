@@ -46,7 +46,9 @@ test('l’imposteur qui survit marque des points ; le classement cumule', async 
   assert.ok(sessionRanking(G, 5).length > 0, 'session en cours')
 
   await b.send(G, PL[1], '/top')
-  assert.match(b.last(/Classement de l’imposteur/), /Session en cours[\s\S]*Général/)
+  const top = b.image(/Classement du groupe/)
+  assert.match(top, /CLASSEMENT/)
+  assert.match(top, /SESSION EN COURS/)
   await b.send(G, PL[1], '/stats')
   const card = b.image(/Profil de/)
   assert.match(card, /PROFIL DE JOUEUR/)

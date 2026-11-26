@@ -168,3 +168,15 @@ test('profil : séries de victoires, rang et forme calculés depuis l’historiq
   assert.match(svg, /victoires d’affilée/)
   assert.equal(playerStats(grp, '999'), null)
 })
+
+test('top : podium en image, même avec 1 ou 2 joueurs, et repli texte', async () => {
+  const { rankingSvg } = await import('../src/render/ranking.js')
+  const row = (n, pts) => ({ num: `10${n}`, jid: `10${n}@s.whatsapp.net`, name: n === 2 ? '𝔻𝔼ℕ𝔼𝕄 🔥' : `Joueur${n}`, points: pts, wins: n, games: n + 1 })
+  assert.match(rankingSvg([row(1, 9)], []), /Joueur1/)
+  const two = rankingSvg([row(1, 9), row(2, 5)], [])
+  assert.match(two, /DENEM/)
+  const full = rankingSvg([1, 2, 3, 4, 5, 6, 7].map((n) => row(n, 20 - n)), [row(3, 4)])
+  for (const n of [1, 3, 4, 7]) assert.match(full, new RegExp(`Joueur${n}`))
+  assert.match(full, /DENEM/)
+  assert.match(full, /SESSION EN COURS/)
+})
