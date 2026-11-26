@@ -1,7 +1,7 @@
 // Phase 2 · Distribution des rôles en privé, avec barre de progression modifiée en direct.
 import { config } from '../../config.js'
 import { say, editMsg } from '../../whatsapp/messenger.js'
-import { sleep, tag, progressBar } from '../../core/utils.js'
+import { sleep, tag, progressBar, shuffle } from '../../core/utils.js'
 import { deliverRole, resolveDms } from '../../roles/delivery.js'
 import { isActive } from '../store.js'
 import { phaseTimer } from '../lifecycle.js'
@@ -35,7 +35,7 @@ export const distributeRoles = async (key, g) => {
   const failed = []
   let firstError = ''
   let done = 0
-  for (const p of g.players) {
+  for (const p of shuffle(g.players)) {
     if (!isActive(g)) return // partie annulée entre-temps
     const r = await deliverRole(g, p)
     const ok = r.ok

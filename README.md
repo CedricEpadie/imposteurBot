@@ -249,3 +249,9 @@ Image à la charte (`render/profile.js`) : rang dans le groupe, parties / victoi
 
 ### Nombre d'imposteurs
 Format 1 : toujours 1. Format 2 : 1 imposteur, 2 dès 8 joueurs, 3 dès 12 (`config.rounds.twoImpostersFrom` / `threeImpostersFrom`).
+
+### Aléatoire (`core/random.js`, `game/fairness.js`, `game/words.js`)
+- **Source** : aléa cryptographique (`crypto.randomInt`), plus de `Math.random`. Les tests injectent une source déterministe (`setRandomSource`).
+- **Imposteurs** : tirage pondéré selon l'historique en base (donc persistant). Poids selon le nombre de parties écoulées depuis le dernier rôle d'imposteur : 0,2 (à la partie précédente), 0,5, 1, 1,6, 2,2, 2,7, 3 (jamais). Personne n'est jamais exclu. Barème dans `fairness.js` (`WEIGHTS`).
+- **Mots** : mémoire persistante des paires jouées (pas de répétition avant épuisement, même après redémarrage) ; on tire d'abord une catégorie (hors les 3 dernières), puis une paire ; mots vus dans les dernières parties évités ; mot des civils / de l'imposteur tiré à pile ou face.
+- **Ordre de parole** : mélange complet, avec un premier orateur toujours différent de la partie précédente. L'envoi des cartes privées se fait aussi dans un ordre aléatoire.
