@@ -2,7 +2,7 @@
 // Le contenu d’un rôle n’est jamais écrit dans les logs.
 import { config } from '../config.js'
 import { getSocket } from '../whatsapp/socket.js'
-import { num, clean } from '../core/utils.js'
+import { num, clean, sleep } from '../core/utils.js'
 import { getMode } from '../game/modes/index.js'
 import { renderCard } from '../render/card.js'
 
@@ -57,10 +57,18 @@ const sendCard = async (jids, spec, fallbackText) => {
 }
 
 // Envoie son rôle (ou mot secret) au joueur p, selon le mode de la partie
-export const deliverRole = (g, p) => {
+export const deliverRole = async (g, p) => {
   const mode = getMode(g.mode)
   const isImp = g.imposters.includes(p)
-  return sendCard([p.dm, p.jid], mode.card(g, isImp), mode.roleText(g, isImp))
+  const spec = mode.card(g, isImp)
+  const text = mode.roleText(g, isImp)
+  // Un échec ponctuel (réseau, WhatsApp occupé) ne doit pas priver un joueur de son rôle : on réessaie avec une attente croissante
+  let r = await sendCard([p.dm, p.jid], spec, text)
+  for (let i = 1; !r.ok && i <= config.game.dmRetries; i++) {
+    await sleep(2000 * i)
+    r = await sendCard([p.dm, p.jid], spec, text)
+  }
+  return r
 }
 
 // Si un joueur n’est connu que par son identifiant LID, retrouve son numéro via les infos du groupe

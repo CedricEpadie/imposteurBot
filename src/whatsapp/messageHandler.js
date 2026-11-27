@@ -9,8 +9,24 @@ import { getGame } from '../game/store.js'
 
 const P = config.prefix
 
+// WhatsApp peut renvoyer des messages déjà reçus (reconnexion, resynchronisation) : un indice ne doit pas compter deux fois.
+const SEEN_TTL_MS = 10 * 60_000
+const SEEN_MAX = 3000
+const seen = new Map() // « chat|id » → heure de réception
+export const isDuplicate = (m, now = Date.now()) => {
+  const id = m.key?.id
+  if (!id) return false
+  const k = `${m.key.remoteJid}|${id}`
+  if (seen.has(k)) return true
+  seen.set(k, now)
+  if (seen.size > SEEN_MAX) for (const [key, t] of seen) if (now - t > SEEN_TTL_MS || seen.size > SEEN_MAX) seen.delete(key)
+  return false
+}
+export const _resetSeen = () => seen.clear() // pour les tests
+
 export const onMessage = async (m) => {
   if (!m.message || !m.key?.remoteJid) return
+  if (isDuplicate(m)) return
   const chat = m.key.remoteJid
   if (chat === 'status@broadcast' || chat.endsWith('@broadcast') || chat.endsWith('@newsletter')) return
 

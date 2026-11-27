@@ -1,5 +1,5 @@
 // Petits utilitaires purs, sans dépendance au jeu ni à WhatsApp.
-import { randInt } from './random.js'
+import { randInt, rand as randFloat } from './random.js'
 
 // « 237600000000:12@s.whatsapp.net » → « 237600000000 »
 export const num = (jid) => String(jid || '').split('@')[0].split(':')[0]
@@ -12,6 +12,8 @@ export const clean = (jid) => {
 
 export const tag = (jid) => '@' + num(jid)
 export const pick = (arr) => arr[randInt(arr.length)]
+// Durée aléatoire (en ms) entre min et max secondes
+export const jitterMs = (minS, maxS) => Math.round((minS + randFloat() * Math.max(0, maxS - minS)) * 1000)
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 export const shuffle = (arr) => {

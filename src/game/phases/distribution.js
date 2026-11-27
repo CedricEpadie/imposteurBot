@@ -1,7 +1,7 @@
 // Phase 2 · Distribution des rôles en privé, avec barre de progression modifiée en direct.
 import { config } from '../../config.js'
-import { say, editMsg } from '../../whatsapp/messenger.js'
-import { sleep, tag, progressBar, shuffle } from '../../core/utils.js'
+import { say, editMsg, notifyAdmins } from '../../whatsapp/messenger.js'
+import { sleep, tag, progressBar, shuffle, jitterMs } from '../../core/utils.js'
 import { deliverRole, resolveDms } from '../../roles/delivery.js'
 import { isActive } from '../store.js'
 import { phaseTimer } from '../lifecycle.js'
@@ -12,7 +12,7 @@ import { askTurn } from './clues.js'
 import { modeLabel } from '../wording.js'
 
 const P = config.prefix
-const { readSeconds, dmDelaySeconds } = config.game
+const { readSeconds, dmDelayMinSeconds, dmDelayMaxSeconds } = config.game
 const { delivery, selfDestruct } = config.roles
 
 export const distributeRoles = async (key, g) => {
@@ -50,16 +50,18 @@ export const distributeRoles = async (key, g) => {
       progress(done, ok ? `✅ ${tag(p.jid)} a reçu son ${secretLabel}` : `⚠️ ${tag(p.jid)} : envoi impossible`),
       jidsOf(g)
     )
-    if (done < total) await sleep(dmDelaySeconds * 1000)
+    if (done < total) await sleep(jitterMs(dmDelayMinSeconds, dmDelayMaxSeconds))
   }
   if (!isActive(g)) return
 
   if (failed.length) {
     await say(
       key,
-      `⚠️ Je n’ai pas pu écrire en privé à ${failed.map(tag).join(', ')}. Écrivez-moi d’abord en privé (un simple « salut »), puis tapez *${P}imposteur mot* pour recevoir votre ${secretLabel}.\n🔧 Détail technique : ${firstError}`,
+      `⚠️ Je n’ai pas pu écrire en privé à ${failed.map(tag).join(', ')}. Écrivez-moi d’abord en privé (un simple « salut »), puis tapez *${P}imposteur mot* pour recevoir votre ${secretLabel}.`,
       failed
     )
+    // le détail technique va aux admins, pas au groupe
+    notifyAdmins(`⚠️ Rôles non livrés dans ${key} : ${failed.length} joueur(s) sur ${total} (après ${config.game.dmRetries + 1} essais chacun).\nPremière erreur : ${firstError}`).catch(() => {})
   }
 
   g.phase = 'ready'

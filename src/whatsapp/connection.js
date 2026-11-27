@@ -13,10 +13,15 @@ import { num } from '../core/utils.js'
 import { setSocket } from './socket.js'
 import { onMessage } from './messageHandler.js'
 import { resumeGames } from '../game/resume.js'
+import { reconnectPlan, backupAuthDir } from './session.js'
+import { setConnected } from '../core/heartbeat.js'
 
 const { authDir, pairingNumber, prefix } = config
 let pairingRequested = false
 let resumed = false // les parties interrompues ne sont reprises qu’une fois par lancement du bot
+let attempts = 0 // échecs de connexion consécutifs (délai croissant)
+let generation = 0 // numéro de la connexion active : les événements d’une ancienne connexion sont ignorés
+let reconnectTimer = null
 
 export const startConnection = async () => {
   const { state, saveCreds } = await useMultiFileAuthState(authDir)
@@ -37,10 +42,12 @@ export const startConnection = async () => {
     syncFullHistory: false,
   })
   setSocket(current)
+  const mine = ++generation
 
   current.ev.on('creds.update', saveCreds)
 
   current.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
+    if (mine !== generation) return
     if (qr) {
       if (pairingNumber && !state.creds.registered) {
         if (!pairingRequested) {
@@ -61,6 +68,8 @@ export const startConnection = async () => {
 
     if (connection === 'open') {
       pairingRequested = false
+      attempts = 0
+      setConnected(true)
       console.log(`✅ Bot connecté (${num(current.user?.id)}). Préfixe : ${prefix} • Rôles : ${config.roles.delivery}`)
       if (!resumed) {
         resumed = true
@@ -72,20 +81,24 @@ export const startConnection = async () => {
 
     if (connection === 'close') {
       pairingRequested = false
+      setConnected(false)
       const code = lastDisconnect?.error?.output?.statusCode
-      if (code === DisconnectReason.loggedOut) {
-        console.error('🔒 Session déconnectée par WhatsApp (401). Session supprimée : une nouvelle liaison est nécessaire.')
+      const plan = reconnectPlan(code, attempts++)
+      if (plan.relink) {
+        const saved = backupAuthDir(authDir)
+        console.error(`🔒 ${plan.note}. Session ${saved ? `sauvegardée dans ${saved} puis ` : ''}supprimée.`)
         fs.rmSync(authDir, { recursive: true, force: true })
-        setTimeout(() => startConnection().catch(console.error), 2000)
+        attempts = 0
       } else {
-        console.warn(`⚠️ Connexion fermée (code ${code ?? '?'}), reconnexion…`)
-        setTimeout(() => startConnection().catch(console.error), 3000)
+        console.warn(`⚠️ ${plan.note} — reconnexion dans ${Math.round(plan.delayMs / 1000)} s (essai ${attempts})`)
       }
+      clearTimeout(reconnectTimer)
+      reconnectTimer = setTimeout(() => startConnection().catch((e) => console.error('[imposteur] reconnexion :', e)), plan.delayMs)
     }
   })
 
   current.ev.on('messages.upsert', async ({ messages, type }) => {
-    if (type !== 'notify') return
+    if (mine !== generation || type !== 'notify') return
     for (const m of messages) {
       try {
         await onMessage(m)

@@ -1,4 +1,5 @@
 // Envoi de messages dans un chat (groupe ou privé).
+import { config } from '../config.js'
 import { getSocket } from './socket.js'
 import { sleep } from '../core/utils.js'
 
@@ -27,6 +28,17 @@ export const sayImage = async (chat, image, caption, mentions = []) => {
   } catch (e) {
     console.error('[imposteur] envoi de l’image impossible :', e.message)
     return null
+  }
+}
+
+// Message privé aux admins du bot (ADMIN_NUMBERS) : incidents techniques qui ne regardent pas le groupe. Sans effet si aucun admin n’est défini.
+export const notifyAdmins = async (text) => {
+  for (const n of config.admins) {
+    try {
+      await getSocket().sendMessage(`${n}@s.whatsapp.net`, { text })
+    } catch (e) {
+      console.warn('[imposteur] alerte admin impossible :', e.message)
+    }
   }
 }
 

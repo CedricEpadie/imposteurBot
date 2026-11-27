@@ -13,7 +13,21 @@ const { config } = await import('./src/config.js') // en premier : charge le fic
 const { checkCardRendering } = await import('./src/render/card.js')
 const { getDb } = await import('./src/storage/db.js')
 const { loadPacks, getPacks } = await import('./src/content/packs.js')
+const { startBackups } = await import('./src/storage/backup.js')
+const { startHeartbeat } = await import('./src/core/heartbeat.js')
+const { closeDb } = await import('./src/storage/db.js')
 const { startConnection } = await import('./src/whatsapp/connection.js')
+
+// Arrêt propre (docker stop, pm2 stop) : les parties sont déjà sauvegardées à chaque phase ; on ferme la base proprement
+for (const sig of ['SIGTERM', 'SIGINT']) {
+  process.on(sig, () => {
+    console.log(`${sig} reçu : arrêt du bot`)
+    try {
+      closeDb()
+    } catch {}
+    process.exit(0)
+  })
+}
 
 process.on('unhandledRejection', (e) => console.error('unhandledRejection :', e))
 process.on('uncaughtException', (e) => console.error('uncaughtException :', e))
@@ -26,6 +40,8 @@ try {
   process.exit(1)
 }
 loadPacks()
+startBackups()
+startHeartbeat()
 console.log(`📦 ${getPacks().length} pack(s) de mots : ${getPacks().map((p) => p.id).join(', ')}`)
 
 // Vérifie au démarrage que les cartes de rôle peuvent être générées
@@ -35,7 +51,7 @@ if (config.roles.delivery !== 'text') {
   } catch (e) {
     console.error(
       `❌ Impossible de générer les cartes de rôle (${e.message}).\n` +
-        `   Installe les dépendances (yarn install) et des polices (ex. : sudo apt install fonts-dejavu-core),\n` +
+        `   Installe les dépendances (npm ci) et des polices (ex. : sudo apt install fonts-dejavu-core),\n` +
         `   ou mets ROLE_DELIVERY=text dans .env (les rôles seront alors visibles par l’hébergeur du bot).`
     )
     process.exit(1)

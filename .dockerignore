@@ -1,0 +1,10 @@
+node_modules
+auth
+data
+.env
+.git
+.github
+*.zip
+test
+docs
+npm-debug.log

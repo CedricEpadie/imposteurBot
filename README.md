@@ -258,3 +258,17 @@ Format 1 : toujours 1. Format 2 : 1 imposteur, 2 dès 8 joueurs, 3 dès 12 (`con
 
 ### Classement en image (`/imposteur top`)
 Podium à la charte (`render/ranking.js`) : 1er au centre sur la marche la plus haute, 2e à gauche, 3e à droite, puis les rangs suivants en liste (10 au plus) et le bloc « Session en cours » (5 au plus). Fonctionne dès 1 joueur classé. Texte complet avec @mentions si l'image est impossible.
+
+## Durcissement (v1.8)
+
+- **Versions fixées** : `package.json` fixe Baileys (`7.0.0-rc14`, au moment de cette version « latest » pointait sur cette version candidate), sharp, pino, pm2, qrcode-terminal ; `package-lock.json` garantit des installations identiques (`npm ci`). Si ton installation actuelle tourne avec une autre version de Baileys, vérifie avec `npm ls @whiskeysockets/baileys` et reporte-la dans `package.json`. Mettre Baileys à jour est un choix volontaire, à tester avec `/imposteur test`.
+- **Reconnexion** (`whatsapp/session.js`) : délai croissant 3 s, 6 s, 12 s… plafonné à 2 min (avec un peu de hasard). Cas particuliers : compte connecté ailleurs (440) → attente de 5 min au lieu d'une boucle de conflit ; accès refusé (403) → 10 min ; redémarrage demandé (515) → immédiat. Quand WhatsApp déconnecte la session (401), le dossier `auth/` est d'abord copié en `auth.sauvegarde-<date>` (3 copies gardées) avant d'être supprimé.
+- **Doublons** : un message déjà traité (même identifiant, même conversation, dans les 10 minutes) est ignoré : un indice ne compte plus deux fois après une reconnexion.
+- **Envoi des rôles** : pause aléatoire de 2 à 4 s entre deux envois (`dmDelayMinSeconds`, `dmDelayMaxSeconds`), 2 nouvelles tentatives par joueur (`dmRetries`), et le détail technique d'un échec va aux admins (`ADMIN_NUMBERS`) en message privé, plus au groupe.
+- **État des parties chiffré** (AES-256-GCM, `storage/crypto.js`) : le mot secret et les imposteurs ne sont plus lisibles dans la base. Clé : `STATE_KEY` du `.env` (recommandé) ou `DATA_DIR/.state-key` créé automatiquement (droits 600). Ne range pas la clé avec les sauvegardes. Les anciennes parties non chiffrées restent lisibles ; une partie illisible (clé changée) est ignorée.
+- **Sauvegarde de la base** (`storage/backup.js`) : un instantané cohérent par jour dans `DATA_DIR/backups` (`BACKUP_KEEP`, 7 par défaut, 0 = désactivé), fait aussi au démarrage si la dernière a plus de 24 h. `/imposteur sauvegarde` (admin) en fait une tout de suite. Restauration : arrêter le bot, `npm run restore` (liste), `npm run restore -- <fichier>` ; l'ancienne base est gardée en `.avant-restauration`.
+
+
+## Docker et intégration continue (v1.9)
+
+Dockerfile, `docker-compose.yml` (redémarrage auto, volume `/data`, rotation des logs, sonde de santé par battement de cœur), arrêt propre sur SIGTERM, `npm run smoke` (rendu réel des images) et workflow GitHub Actions `.github/workflows/ci.yml`. Mode d'emploi pas à pas : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md).

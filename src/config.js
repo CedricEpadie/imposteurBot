@@ -38,6 +38,8 @@ export const config = {
     dbPath: env.DB_PATH || `${env.DATA_DIR || './data'}/imposteur.db`, // « :memory: » pour les tests
     sessionGapHours: 6, // une « session » = parties du groupe séparées de moins de 6 h
     resumeMaxAgeMinutes: 120, // une partie interrompue depuis plus longtemps n’est pas reprise
+    // Sauvegarde automatique de la base dans <DATA_DIR>/backups : au plus une toutes les `everyHours` heures, `keep` copies conservées (0 = désactivé)
+    backups: { keep: Number(env.BACKUP_KEEP ?? 7), everyHours: 24 },
   },
 
   // Numéros autorisés à utiliser les commandes admin (ajouter des mots, effacer les scores).
@@ -72,6 +74,10 @@ export const config = {
     discussSeconds: 60, // discussion libre avant le vote
     voteSeconds: 45,
     guessSeconds: 30, // dernière chance de l’imposteur démasqué
-    dmDelaySeconds: 5, // pause entre deux envois privés (limite les risques de blocage)
+    // Pause entre deux envois privés : durée tirée au hasard entre ces deux bornes (un rythme irrégulier ressemble plus à un humain
+    // et limite les risques de blocage ; 15 joueurs = environ 45 s au lieu de 75 s)
+    dmDelayMinSeconds: 2,
+    dmDelayMaxSeconds: 4,
+    dmRetries: 2, // nouvelles tentatives d’envoi d’un rôle en cas d’échec (en plus du premier essai)
   },
 }

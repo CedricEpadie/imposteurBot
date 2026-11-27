@@ -1,0 +1,21 @@
+# Lancer : docker compose up -d --build        Logs : docker compose logs -f        Arrêter : docker compose down
+# Première connexion (QR code) : voir docs/DEPLOIEMENT.md
+services:
+  bot:
+    build: .
+    image: imposteur-bot
+    container_name: imposteur
+    restart: unless-stopped      # relancé après un plantage ou un redémarrage du serveur
+    env_file: .env               # PREFIX, ADMIN_NUMBERS, STATE_KEY, ROLE_DELIVERY…
+    environment:
+      AUTH_DIR: /data/auth       # session WhatsApp (à ne jamais perdre)
+      DATA_DIR: /data/db         # scores, parties en cours, sauvegardes, packs ajoutés
+    volumes:
+      - imposteur-data:/data     # volume persistant : survit aux mises à jour de l'image
+    stop_grace_period: 20s
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }   # rotation des journaux (sinon ils grossissent sans fin)
+volumes:
+  imposteur-data:
