@@ -17,16 +17,35 @@ const write = () => {
   }
 }
 
+export const isConnected = () => connected
+// Depuis combien de ms le bot est déconnecté (0 s'il est connecté)
+export const downForMs = (now = Date.now()) => (connected ? 0 : now - since)
+
 export const setConnected = (value) => {
   if (value !== connected) since = Date.now()
   connected = value
   write()
 }
 
+// Surveillance externe (facultatif) : HEALTHCHECK_URL = adresse « push » d'Uptime Kuma, Healthchecks.io, BetterStack…
+// Le bot l'appelle toutes les minutes TANT QU'IL EST CONNECTÉ ; si les appels s'arrêtent (serveur éteint, bot planté ou
+// déconnecté trop longtemps), le service externe t'envoie l'alerte (mail, Telegram…) — même si le serveur entier est tombé.
+const ping = async () => {
+  const url = process.env.HEALTHCHECK_URL
+  if (!url || !connected) return
+  try {
+    await fetch(url, { signal: AbortSignal.timeout(10_000) })
+  } catch {
+    /* le service externe est injoignable : sans importance pour le bot */
+  }
+}
+
 export const startHeartbeat = () => {
   write()
   const timer = setInterval(write, 30_000)
+  const pinger = setInterval(ping, 60_000)
   timer.unref()
+  pinger.unref()
   return timer
 }
 

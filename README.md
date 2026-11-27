@@ -1,55 +1,51 @@
 # 🕵️ Bot WhatsApp — L'Imposteur
 
-Bot autonome (Baileys), lancé en arrière-plan avec **pm2** via **yarn**. Préfixe par défaut : `/`.
+![CI](https://github.com/TON-COMPTE/imposteurBot/actions/workflows/ci.yml/badge.svg)
 
-## Installation
+Bot autonome (Baileys), prévu pour tourner dans **Docker** (recommandé) ou directement avec Node + pm2. Préfixe par défaut : `/`.
+Mise en production complète (Docker, migration, CI/CD GitHub, alertes) : **[docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md)**.
 
-```bash
-yarn install
-cp .env.example .env     # puis ajuste si besoin
-```
-
-pm2 est installé avec le projet : pas besoin de l'installer globalement.
-
-## Première connexion (QR code)
-
-Lance le bot **au premier plan** pour scanner le QR :
+## Démarrage rapide avec Docker (recommandé)
 
 ```bash
-yarn dev
+cp .env.example .env && nano .env      # PREFIX, ADMIN_NUMBERS, STATE_KEY…
+docker compose build
+docker compose run --rm bot            # 1re connexion : scanne le QR code, attends « ✅ Bot connecté », puis Ctrl+C
+docker compose up -d                   # lancement permanent (redémarrage automatique)
+docker compose logs -f                 # journaux
 ```
 
-Scanne le QR avec le téléphone du bot (WhatsApp → Appareils connectés → Connecter un appareil),
-attends le message `✅ Bot connecté`, puis arrête avec `Ctrl+C`.
-
-Variante sans QR : renseigne `PAIRING_NUMBER` dans `.env` (ex. `237600000000`), lance `yarn start`,
-puis lis le code de jumelage avec `yarn logs`.
-
-## Lancer en arrière-plan (pm2)
+Variante sans QR : renseigne `PAIRING_NUMBER` dans `.env` (ex. `237600000000`) et lis le code de jumelage dans `docker compose logs -f`.
+Le QR se scanne avec le téléphone du bot (WhatsApp → Appareils connectés → Connecter un appareil).
 
 | Commande | Effet |
 |---|---|
-| `yarn start` | démarre le bot en arrière-plan |
-| `yarn status` | état du processus |
-| `yarn logs` | logs en direct (`Ctrl+C` pour quitter, le bot continue) |
-| `yarn restart` | redémarre |
-| `yarn stop` | arrête |
-| `yarn delete` | retire le bot de pm2 |
+| `docker compose up -d --build` | démarre ou met à jour le bot |
+| `docker compose ps` | état (`healthy` = connecté à WhatsApp) |
+| `docker compose logs -f` | journaux en direct (`Ctrl+C` pour quitter, le bot continue) |
+| `docker compose restart` | redémarre |
+| `docker compose down` | arrête (les données restent dans le volume) |
 
-### Redémarrage automatique au boot du serveur
+## Sans Docker (Node + pm2)
+
+Node.js **≥ 22.13** requis.
 
 ```bash
-yarn pm2 startup      # affiche une commande sudo à copier-coller
-yarn start
-yarn pm2 save
+npm ci
+cp .env.example .env
+npm run dev          # 1re connexion au premier plan (QR) ; Ctrl+C après « ✅ Bot connecté »
+npm start            # lancement en arrière-plan avec pm2 (installé avec le projet)
+npm run status       # état     |  npm run logs  # journaux  |  npm run restart / stop / delete
+npx pm2 startup      # redémarrage automatique au boot : copie la commande sudo affichée, puis :  npm start && npx pm2 save
 ```
 
-## Déploiement
+## Déploiement : ce qu'il faut savoir
 
-- Node.js **≥ 22.13** (la base SQLite `node:sqlite` est intégrée à Node ; elle affiche un avertissement « experimental » au démarrage, sans conséquence).
-- Garde le dossier `auth/` (ou `AUTH_DIR`) **et le dossier `data/` (ou `DATA_DIR`)** sur un **volume persistant** : sans `auth/` il faudra rescanner le QR, sans `data/` les scores, les parties en cours et les mots ajoutés seront perdus.
-- **Une seule instance** par session WhatsApp (sinon déconnexions en boucle) : ne lance pas aussi `yarn dev` pendant que pm2 tourne.
-- Si WhatsApp déconnecte la session (401), le bot supprime `auth/` et réaffiche un QR / code (visible avec `yarn logs`).
+- La base SQLite `node:sqlite` est intégrée à Node ; l'avertissement « experimental » au démarrage est sans conséquence.
+- Garde `auth/` (`AUTH_DIR`) **et** `data/` (`DATA_DIR`) sur un **volume persistant** : sans `auth/`, il faut rescanner le QR ; sans `data/`, les scores, les parties en cours et les mots ajoutés sont perdus. Avec Docker, c'est le volume `imposteur-data`.
+- **Une seule instance** par session WhatsApp (sinon déconnexions en boucle) : ne lance jamais Docker, pm2 et `npm run dev` en même temps.
+- Si WhatsApp invalide la session (401), le bot en garde une copie, supprime `auth/` et réaffiche un QR / code (dans les journaux).
+- **Alertes** : si `ADMIN_NUMBERS` est défini, les admins reçoivent un message privé au démarrage, au retour après une coupure d'au moins 10 min et si la sauvegarde quotidienne échoue. `HEALTHCHECK_URL` (Uptime Kuma, Healthchecks.io…) prévient aussi si le serveur entier tombe.
 
 ## Équité : l'hébergeur du bot peut-il voir les rôles ?
 
@@ -234,7 +230,7 @@ Si la phase écoute les messages du groupe, déclare son gestionnaire dans `TEXT
 ## Tests
 
 ```bash
-yarn test     # ou : npm test
+npm test
 ```
 
 La suite (`test/`) fait tourner le vrai code du bot contre un **faux WhatsApp** et une **horloge virtuelle** : une partie entière de plusieurs minutes
@@ -267,8 +263,3 @@ Podium à la charte (`render/ranking.js`) : 1er au centre sur la marche la plus 
 - **Envoi des rôles** : pause aléatoire de 2 à 4 s entre deux envois (`dmDelayMinSeconds`, `dmDelayMaxSeconds`), 2 nouvelles tentatives par joueur (`dmRetries`), et le détail technique d'un échec va aux admins (`ADMIN_NUMBERS`) en message privé, plus au groupe.
 - **État des parties chiffré** (AES-256-GCM, `storage/crypto.js`) : le mot secret et les imposteurs ne sont plus lisibles dans la base. Clé : `STATE_KEY` du `.env` (recommandé) ou `DATA_DIR/.state-key` créé automatiquement (droits 600). Ne range pas la clé avec les sauvegardes. Les anciennes parties non chiffrées restent lisibles ; une partie illisible (clé changée) est ignorée.
 - **Sauvegarde de la base** (`storage/backup.js`) : un instantané cohérent par jour dans `DATA_DIR/backups` (`BACKUP_KEEP`, 7 par défaut, 0 = désactivé), fait aussi au démarrage si la dernière a plus de 24 h. `/imposteur sauvegarde` (admin) en fait une tout de suite. Restauration : arrêter le bot, `npm run restore` (liste), `npm run restore -- <fichier>` ; l'ancienne base est gardée en `.avant-restauration`.
-
-
-## Docker et intégration continue (v1.9)
-
-Dockerfile, `docker-compose.yml` (redémarrage auto, volume `/data`, rotation des logs, sonde de santé par battement de cœur), arrêt propre sur SIGTERM, `npm run smoke` (rendu réel des images) et workflow GitHub Actions `.github/workflows/ci.yml`. Mode d'emploi pas à pas : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md).

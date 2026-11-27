@@ -14,7 +14,8 @@ import { setSocket } from './socket.js'
 import { onMessage } from './messageHandler.js'
 import { resumeGames } from '../game/resume.js'
 import { reconnectPlan, backupAuthDir } from './session.js'
-import { setConnected } from '../core/heartbeat.js'
+import { setConnected, downForMs } from '../core/heartbeat.js'
+import { queueAlert, flushAlerts, appVersion } from '../core/alerts.js'
 
 const { authDir, pairingNumber, prefix } = config
 let pairingRequested = false
@@ -69,8 +70,14 @@ export const startConnection = async () => {
     if (connection === 'open') {
       pairingRequested = false
       attempts = 0
+      const downMin = Math.round(downForMs() / 60_000)
+      const firstOpen = !resumed
       setConnected(true)
       console.log(`✅ Bot connecté (${num(current.user?.id)}). Préfixe : ${prefix} • Rôles : ${config.roles.delivery}`)
+      // Alertes aux admins : démarrage, ou retour après une coupure d'au moins 10 min
+      if (firstOpen) queueAlert('start', `✅ L'Imposteur v${appVersion()} démarré et connecté.`, { cooldownMin: 0 })
+      else if (downMin >= 10) queueAlert('back', `✅ Bot reconnecté après ${downMin} min de coupure.`, { cooldownMin: 0 })
+      flushAlerts().catch(() => {})
       if (!resumed) {
         resumed = true
         resumeGames()
@@ -88,6 +95,7 @@ export const startConnection = async () => {
         const saved = backupAuthDir(authDir)
         console.error(`🔒 ${plan.note}. Session ${saved ? `sauvegardée dans ${saved} puis ` : ''}supprimée.`)
         fs.rmSync(authDir, { recursive: true, force: true })
+        queueAlert('relink', '🔒 La session WhatsApp avait été invalidée (401) puis reliée : les parties en cours ont continué, mais vérifie que tout fonctionne.', { cooldownMin: 0 })
         attempts = 0
       } else {
         console.warn(`⚠️ ${plan.note} — reconnexion dans ${Math.round(plan.delayMs / 1000)} s (essai ${attempts})`)

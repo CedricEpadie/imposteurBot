@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { config } from '../config.js'
 import { getDb } from './db.js'
+import { alertNow } from '../core/alerts.js'
 
 const dir = () => path.join(config.data.dir, 'backups')
 const stamp = (d = new Date()) => d.toISOString().slice(0, 16).replace(/[:T]/g, '-') // 2026-11-27-05-49
@@ -48,6 +49,7 @@ export const startBackups = () => {
       }
     } catch (e) {
       console.error('[imposteur] sauvegarde de la base impossible :', e.message)
+      alertNow('backup', `⚠️ La sauvegarde quotidienne de la base a échoué : ${e.message}`, { cooldownMin: 12 * 60 }).catch(() => {})
     }
   }
   run()

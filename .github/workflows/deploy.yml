@@ -1,0 +1,46 @@
+# Déploiement automatique : quand le CI est vert sur main, GitHub se connecte en SSH au serveur et met le bot à jour.
+# Secrets à créer dans GitHub (Settings → Secrets and variables → Actions) : SSH_HOST, SSH_USER, SSH_KEY (clé privée), SSH_PORT (facultatif).
+# Variable facultative : DEPLOY_DIR (dossier du bot sur le serveur, par défaut ~/imposteurBot).
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:        # bouton « Run workflow » pour redéployer à la main
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false  # ne jamais interrompre un déploiement en cours
+
+jobs:
+  deploy:
+    name: Mise à jour du serveur
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@v1.2.0
+        env:
+          DEPLOY_DIR: ${{ vars.DEPLOY_DIR }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          envs: DEPLOY_DIR
+          script_stop: true
+          script: |
+            cd "${DEPLOY_DIR:-$HOME/imposteurBot}"
+            git fetch origin main
+            git reset --hard origin/main      # .env et le volume Docker ne sont pas touchés
+            docker compose up -d --build
+            echo "Attente de la sonde de santé (jusqu'à 3 min)…"
+            for i in $(seq 1 18); do
+              s=$(docker inspect --format '{{.State.Health.Status}}' imposteur)
+              echo "  état : $s"
+              [ "$s" = healthy ] && exit 0
+              sleep 10
+            done
+            docker compose logs --tail 40
+            exit 1

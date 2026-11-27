@@ -1,0 +1,23 @@
+# Mises à jour automatiques : GitHub ouvre une Pull Request quand une dépendance a une nouvelle version ;
+# le CI la teste ; tu fusionnes si c'est vert. Rien n'est modifié sans ton accord.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      correctifs:               # tous les correctifs/mineures regroupés dans une seule PR
+        update-types: [minor, patch]
+    ignore:
+      # Baileys reste volontairement figé (rc14) : on le met à jour à la main, après test avec /imposteur test
+      - dependency-name: '@whiskeysockets/baileys'
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    ignore:
+      - dependency-name: node
+        update-types: ['version-update:semver-major']   # pas de saut de version majeure de Node sans décision
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }

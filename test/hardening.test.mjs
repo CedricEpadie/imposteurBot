@@ -147,3 +147,17 @@ test('healthStatus : sain, bloqué, déconnecté trop longtemps', () => {
   assert.equal(healthStatus({ ts: now - 5000, connected: false, since: now - 5 * 60_000 }, now).ok, true) // reconnexion en cours
   assert.equal(healthStatus({ ts: now - 5000, connected: false, since: now - 20 * 60_000 }, now).ok, false) // déconnecté trop longtemps
 })
+
+// ── Alertes aux admins ───────────────────────────────────────────────────────
+const alerts = await import('../src/core/alerts.js')
+test('alertes : regroupées, dédoublonnées, envoyées une seule fois', async () => {
+  alerts._reset()
+  assert.equal(alerts.queueAlert('a', 'A', { now: 0 }), true)
+  assert.equal(alerts.queueAlert('a', 'A bis', { cooldownMin: 30, now: 60_000 }), false) // trop récente
+  assert.equal(alerts.queueAlert('b', 'B', { now: 60_000 }), true)
+  const sent = []
+  assert.equal(await alerts.flushAlerts(async (t) => sent.push(t)), 2)
+  assert.deepEqual(sent, ['A\n\nB'])
+  assert.equal(await alerts.flushAlerts(async (t) => sent.push(t)), 0) // file vidée
+  assert.equal(alerts.queueAlert('a', 'A', { now: 31 * 60_000 }), true) // après le délai : de nouveau permise
+})
