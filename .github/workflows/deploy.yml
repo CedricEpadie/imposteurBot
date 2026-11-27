@@ -7,7 +7,7 @@ on:
   workflow_run:
     workflows: [CI]
     types: [completed]
-    branches: [main]
+    branches: [master]
   workflow_dispatch:        # bouton « Run workflow » pour redéployer à la main
 
 concurrency:
@@ -32,8 +32,8 @@ jobs:
           script_stop: true
           script: |
             cd "${DEPLOY_DIR:-$HOME/imposteurBot}"
-            git fetch origin main
-            git reset --hard origin/main      # .env et le volume Docker ne sont pas touchés
+            git fetch origin master
+            git reset --hard origin/master      # .env et le volume Docker ne sont pas touchés
             docker compose up -d --build
             echo "Attente de la sonde de santé (jusqu'à 3 min)…"
             for i in $(seq 1 18); do
