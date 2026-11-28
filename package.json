@@ -1,6 +1,6 @@
 {
   "name": "imposteur-bot",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "description": "Bot WhatsApp du jeu de l'Imposteur (mot secret, indices, vote)",
   "type": "module",
   "main": "index.js",

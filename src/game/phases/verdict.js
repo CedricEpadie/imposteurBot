@@ -21,12 +21,37 @@ import { titlesOf, nicknameOf, MIN_GAMES } from '../titles.js'
 import { askTurn } from './clues.js'
 import { count, ie, roleReveal, stillThere } from '../wording.js'
 import { host, phrase } from '../voice.js'
+import { persistGame } from '../persistence.js'
 
 const P = config.prefix
-const { guessSeconds } = config.game
+const { guessSeconds, clueRounds, minPlayers } = config.game
 const { rounds } = config
 
 const MEDALS = ['🥇', '🥈', '🥉']
+
+// Un joueur qui n'a donné aucun de ses indices (temps écoulé à chaque tour) est éjecté de la partie :
+//  • imposteur → la partie s'arrête, les civils gagnent (+points de victoire, pas de dernière chance) ;
+//  • civil → il sort de la partie (ni vote ni accusation, pas de points de victoire) et le jeu continue, sauf s'il ne reste plus assez de joueurs.
+// Retourne true si la partie est terminée.
+export const ejectForSilence = async (key, g, p) => {
+  g.ejected ??= new Set()
+  g.ejected.add(p)
+  if (isImposter(g, p)) {
+    await say(key, `🚪 ${tag(p.jid)} n’a donné aucun de ses ${clueRounds} indices : éjecté de la partie ! C’était ${roleReveal(true)}.\n${host('ejectedLiar')}`, [p.jid])
+    await conclude(key, 'civils', `🚪 ${tag(p.jid)} éjecté pour silence : la partie s’arrête, tous les civils marquent ${count(config.scoring.civilsWin, 'point')}.`, [p.jid])
+    return true
+  }
+  g.eliminated.add(p)
+  persistGame(g)
+  await say(key, `🚪 ${tag(p.jid)} n’a donné aucun de ses ${clueRounds} indices : éjecté de la partie ! C’était ${roleReveal(false)}.\n${host('ejectedCivil')}`, [p.jid])
+  const left = alivePlayers(g).length
+  const limit = g.format === 'rounds' ? rounds.stopAt : minPlayers - 1
+  if (left <= limit) {
+    await conclude(key, 'imposteur', `🔻 Il ne reste que *${left}* ${left > 1 ? 'joueurs' : 'joueur'} en jeu : trop peu pour continuer.`)
+    return true
+  }
+  return false
+}
 
 // Résultat d’un vote : `accused` = joueur désigné (null = égalité ou aucun vote)
 export const resolveVote = async (key, g, { accused, tie, ranking }) => {

@@ -13,7 +13,7 @@ export const rulesData = () => {
   const steps = [
     ['Ouvrir la partie', `${P}imposteur pour ouvrir, ${P}imposteur join pour rejoindre (${minPlayers} à ${maxPlayers} joueurs).`],
     ['Recevoir son secret', 'Une carte privée donne la catégorie et le mot. L’imposteur n’a que la catégorie.'],
-    ['Donner des indices', `${clueRounds} tours, un seul mot chacun : pas de phrase, ni le mot secret, ni l’indice d’un autre.`],
+    ['Donner des indices', `${clueRounds} tours, un seul mot chacun : pas de phrase, ni le mot secret, ni l’indice d’un autre. Aucun indice donné = éjecté !`],
     ['Débattre puis voter', 'On discute devant le tableau des indices, puis chacun mentionne (@) son suspect.'],
     ['Démasquer', `Un imposteur démasqué peut gagner en devinant le mot. Format 2 : un suspect éliminé par manche, jusqu’à ${stopAt} joueurs.`],
   ]

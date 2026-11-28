@@ -22,7 +22,7 @@ export default {
         `1️⃣ *${P}imposteur* ouvre une partie, les autres tapent *${P}imposteur join* (${minPlayers} à ${maxPlayers} joueurs).\n` +
         `2️⃣ Chacun reçoit *en privé* une carte (à ouvrir une seule fois) avec la catégorie et le mot secret… sauf l’imposteur (ou les imposteurs), qui ne connaît que la catégorie.\n` +
         variants +
-        `3️⃣ ${clueRounds} tours : chacun son tour donne un indice en *un seul mot* (pas de phrase), sans dire son mot ni répéter l’indice d’un autre.\n` +
+        `3️⃣ ${clueRounds} tours : chacun son tour donne un indice en *un seul mot* (pas de phrase), sans dire son mot ni répéter l’indice d’un autre. ⚠️ Aucun indice donné aux ${clueRounds} tours : *éjecté* (imposteur : les civils gagnent ; civil : la partie continue).\n` +
         `4️⃣ Débat libre (avec le tableau des indices), puis vote : mentionnez (@) votre suspect.\n` +
         `5️⃣ Un imposteur démasqué peut encore gagner en devinant le mot !\n` +
         `🔁 Le lanceur peut choisir le format *2* : plusieurs manches, un joueur éliminé à chaque vote jusqu’à ${config.rounds.stopAt} joueurs (${impostersRule()}).\n` +

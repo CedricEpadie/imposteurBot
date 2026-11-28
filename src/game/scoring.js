@@ -47,8 +47,8 @@ export const finalizeScores = (g, winner, viaGuess = false) => {
     if (isImposter(g, p)) {
       if (impWin && (isAlive(g, p) || p === g.guesser)) award(g, p, S.imposterWin, 'imposteur gagnant')
       if (impWin && viaGuess && p === g.guesser) award(g, p, S.imposterGuess, 'mot deviné')
-    } else if (!impWin) {
-      award(g, p, S.civilsWin, 'victoire des civils')
+    } else if (!impWin && !g.ejected?.has(p)) {
+      award(g, p, S.civilsWin, 'victoire des civils') // un civil éjecté pour silence ne gagne pas
     }
   }
   return g.players.map((p) => ({
@@ -56,7 +56,7 @@ export const finalizeScores = (g, winner, viaGuess = false) => {
     jid: p.jid,
     name: p.name,
     role: isImposter(g, p) ? 'imposteur' : 'civil',
-    won: isImposter(g, p) ? impWin : !impWin,
+    won: isImposter(g, p) ? impWin : !impWin && !g.ejected?.has(p),
     points: pointsOf(g, p),
     ...statsOf(g, p),
   }))

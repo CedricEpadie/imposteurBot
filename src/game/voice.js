@@ -123,6 +123,10 @@ export const VOICE = {
     'Vous n’avez rien vu venir : quelle prestation !',
     'Les civils se regardent, perplexes… Les menteurs, eux, savourent !',
   ],
+  // Joueur éjecté pour n'avoir donné aucun de ses indices
+  ejectedCivil: ['Qui ne dit mot ne reste pas : le micro lui est coupé !', 'Les règles sont les règles : direction la sortie !', 'On ne peut pas jouer en silence, désolé !'],
+  ejectedLiar: ['Il croyait se cacher dans le silence… ça ne marche pas ici !', 'Le silence l’a trahi : quel dommage pour le tricheur !', 'Pas un mot, pas de bluff, pas de chance !'],
+
   // Un joueur est éliminé (manches multiples), civil ou imposteur
   eliminatedCivil: ['Oups… mauvaise pioche !', 'Ça fait mal, une erreur de ce genre.', 'Le vrai menteur a dû sourire en coin…'],
   eliminatedImposter: ['Un menteur de moins !', 'Joli coup de filet !', 'Bien joué, le groupe flaire la bonne piste !'],

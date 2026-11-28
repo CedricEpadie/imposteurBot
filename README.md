@@ -284,3 +284,11 @@ Podium à la charte (`render/ranking.js`) : 1er au centre sur la marche la plus 
 - **File de rendus** : au plus 2 images générées en même temps (`RENDER_CONCURRENCY`) : les pics de mémoire sont lissés quand plusieurs groupes jouent.
 - **Test de charge** : `npm run loadtest` fait jouer 10 groupes de 15 joueurs en parallèle avec le vrai rendu d’images
   (`LOAD_GROUPS=30` pour plus). Résultat sur la machine de développement : 30 groupes terminent leur partie, mémoire maximale ≈ 300 Mo (limite du conteneur : 512 Mo).
+
+## Éjection pour silence (v1.10.1)
+
+Un joueur qui ne donne **aucun** de ses indices (temps écoulé à chacun de ses tours, 2 par défaut) est **éjecté** de la partie :
+- **imposteur** : la partie s'arrête, pas de dernière chance, tous les civils marquent les points de victoire (`scoring.civilsWin`, 2 par défaut) ;
+- **civil** : il sort du jeu (ni vote ni accusation, aucun point de victoire) et la partie continue, sauf s'il ne reste plus assez de joueurs (les imposteurs gagnent).
+
+Le bot avertit après le premier indice manqué. Règle écrite dans `/aide`, dans l'image des règles et dans l'annonce du premier tour d'indices.

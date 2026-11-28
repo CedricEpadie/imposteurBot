@@ -13,6 +13,7 @@ import { getMode } from '../modes/index.js'
 import { clueLines } from '../recap.js'
 import { count } from '../wording.js'
 import { startDiscuss } from './discussion.js'
+import { ejectForSilence } from './verdict.js'
 import { bump } from '../behavior.js'
 import { host, sometimes } from '../voice.js'
 
@@ -34,6 +35,7 @@ export const askTurn = async (key) => {
     head =
       header('clues', g) +
       `Chacun donne *un seul mot* (pas de phrase) en rapport avec son mot secret, sans le dire ni répéter l’indice d’un autre.\n` +
+      `🚪 Aucun indice donné aux ${clueRounds} tours = *éjecté de la partie* !\n` +
       `🔁 ${count(clueRounds, 'tour')} • ⏱️ ${clueSeconds} s par joueur\n${host('cluesStart')}\n\n` +
       `📋 *Ordre de passage*\n${g.order.map((p, i) => `${i + 1}. ${tag(p.jid)}`).join('\n')}\n\n`
   } else if (pos === 1) {
@@ -69,14 +71,24 @@ export const takeClue = async (key, text) => {
   bump(g, t, text ? 'clues' : 'missed')
   g.turnIdx++
 
+  // Indices manqués par ce joueur dans la manche en cours (tous manqués = éjection)
+  const missed = text ? 0 : g.clues.filter((c) => c.manche === g.manche && c.p === t && !c.text).length
+  const warn = !text && missed === clueRounds - 1 ? `\n⚠️ ${tag(t.jid)}, un autre indice manqué et tu seras *éjecté de la partie* !` : ''
   await say(
     key,
     text
       ? `✅ ${tag(t.jid)} a donné son indice : *${text}* (${pos}/${n})${sometimes(0.25, 'clueReact')}`
-      : `⏱️ ${tag(t.jid)} n’a rien dit à temps : indice passé… 🐢 (${pos}/${n})\n${host('clueTimeout')}`,
+      : `⏱️ ${tag(t.jid)} n’a rien dit à temps : indice passé… 🐢 (${pos}/${n})\n${host('clueTimeout')}${warn}`,
     [t.jid]
   )
   if (!isActive(g)) return
+
+  if (!text && missed >= clueRounds) {
+    await sleep(1000)
+    if (!isActive(g)) return
+    if (await ejectForSilence(key, g, t)) return
+    if (!isActive(g)) return
+  }
 
   if (g.turnIdx % n === 0) {
     await sleep(1000)
