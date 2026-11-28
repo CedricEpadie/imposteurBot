@@ -73,7 +73,7 @@ jobs:
       group: deploy-prod
       cancel-in-progress: false
     steps:
-      - uses: appleboy/ssh-action@v1.2.0
+      - uses: appleboy/ssh-action@v1.2.5
         env:
           DEPLOY_DIR: ${{ vars.DEPLOY_DIR }}
         with:
