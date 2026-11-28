@@ -8,7 +8,7 @@ const { makeLimiter } = await import('../src/core/limiter.js')
 const { checkCooldown, _resetCooldowns } = await import('../src/core/cooldown.js')
 const { profileSvg } = await import('../src/render/profile.js')
 
-const base = { games: 0, wins: 0, points: 0, asImposter: 0, impWins: 0, civGames: 0, civWins: 0, streak: 0, bestStreak: 0, rightVotes: 0, wrongVotes: 0, votes: 0, received: 0, abstain: 0, talk: 0, clues: 0, missed: 0, stolen: 0, champSeasons: 0, form: [], rank: 1, players: 3 }
+const base = { games: 0, wins: 0, points: 0, asImposter: 0, impWins: 0, civGames: 0, civWins: 0, streak: 0, bestStreak: 0, rightVotes: 0, wrongVotes: 0, votes: 0, abstain: 0, talk: 0, received: 8, clues: 0, missed: 0, stolen: 0, champSeasons: 0, form: [], rank: 1, players: 3 }
 const S = (o) => ({ ...base, ...o })
 
 test('titres : paliers, plus haut palier retenu', () => {
@@ -31,7 +31,7 @@ test('surnoms : style de jeu, Novice avant 5 parties', () => {
   assert.equal(nicknameOf(S({ games: 8, talk: 80 })), 'Le Bavard')
   assert.equal(nicknameOf(S({ games: 8, talk: 30, rightVotes: 7, wrongVotes: 2 })), 'Le Fin Limier')
   assert.equal(nicknameOf(S({ games: 8, talk: 30, rightVotes: 2, wrongVotes: 7 })), 'L’Accusateur')
-  assert.equal(nicknameOf(S({ games: 8, talk: 30, stolen: 2 })), 'Le Voleur de mots')
+  assert.equal(nicknameOf(S({ games: 8, talk: 30, stolen: 2, asImposter: 4, impWins: 1 })), 'Le Voleur de mots')
   assert.equal(nicknameOf(S({ games: 8, talk: 30 })), 'Le Mystérieux')
 })
 
@@ -39,7 +39,7 @@ test('carte de profil : surnom, titres et prochain défi', () => {
   const svg = profileSvg(S({ games: 8, wins: 5, impWins: 5, asImposter: 6, talk: 80, form: [{ won: true, role: 'imposteur' }] }), 'Alice')
   assert.match(svg, /Le Caméléon/)
   assert.match(svg, /Menteur né/)
-  assert.match(svg, /Prochain défi/)
+  assert.match(svg, /Prochain titre/)
   const rookie = profileSvg(S({ games: 1, form: [] }), 'Bob')
   assert.match(rookie, /Aucun titre/)
   assert.match(rookie, /Le Novice/)

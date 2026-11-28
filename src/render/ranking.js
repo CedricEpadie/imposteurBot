@@ -12,7 +12,7 @@ const MEDAL = [
 const nameOf = (r) => cleanName(r.name) || `+${r.num}`
 
 // Podium : place 1 au centre, 2 à gauche, 3 à droite
-const podium = (rows, y) => {
+const podium = (rows, y, mvp = false) => {
   const slots = [
     { idx: 1, h: 190, col: 0 },
     { idx: 0, h: 226, col: 1 },
@@ -31,7 +31,9 @@ const podium = (rows, y) => {
     const cx = x + cw / 2
     out +=
       t(cx, base - h - 64, nameOf(r), { size: 30, weight: 'bold', anchor: 'middle', maxW: cw + gap - 4, minSize: 20 }) +
-      badge(cx, base - h - 30, 22, String(idx + 1), { fill: m.fill, color: m.text, size: 26 }) +
+      (mvp && idx === 0
+        ? `<path d="M-24,14 L-24,-12 L-12,2 L0,-18 L12,2 L24,-12 L24,14 Z" fill="${m.fill}" transform="translate(${cx} ${base - h - 32})"/>`
+        : badge(cx, base - h - 30, 22, String(idx + 1), { fill: m.fill, color: m.text, size: 26 })) +
       rect(x, base - h, cw, h, { r: 20, fill: m.fill }) +
       t(cx, base - h + 64, String(r.points), { size: 60, weight: 'bold', fill: m.text, anchor: 'middle', maxW: cw - 24 }) +
       t(cx, base - h + 96, r.points > 1 ? 'points' : 'point', { size: 26, weight: 'bold', fill: m.text, anchor: 'middle' }) +
@@ -42,10 +44,10 @@ const podium = (rows, y) => {
 }
 
 // rows = classement trié (saison, général…) ; opts = { title, subtitle }
-export const rankingSvg = (rows, { title = 'CLASSEMENT', subtitle = 'Les meilleurs détectives du groupe' } = {}) => {
+export const rankingSvg = (rows, { title = 'CLASSEMENT', subtitle = 'Les meilleurs détectives du groupe', mvp = false } = {}) => {
   let y = 160
   let body = heading(title, subtitle, C.gold, { y: 80 })
-  body += podium(rows, y)
+  body += podium(rows, y, mvp)
   y += 340
 
   rows.slice(3).forEach((r, i) => {

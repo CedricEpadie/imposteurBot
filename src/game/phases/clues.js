@@ -18,6 +18,7 @@ import { bump } from '../behavior.js'
 import { host, sometimes } from '../voice.js'
 
 const { clueRounds, clueSeconds } = config.game
+const FAST_MS = 10_000
 
 export const askTurn = async (key) => {
   const g = getGame(key)
@@ -26,6 +27,7 @@ export const askTurn = async (key) => {
   if (!t) return startDiscuss(key)
 
   g.phase = 'clues'
+  g.turnAt = Date.now() // pour mesurer la rapidité de l’indice
   const n = g.order.length
   const round = Math.floor(g.turnIdx / n) + 1
   const pos = (g.turnIdx % n) + 1
@@ -69,6 +71,10 @@ export const takeClue = async (key, text) => {
   const pos = (g.turnIdx % n) + 1
   g.clues.push({ manche: g.manche, round, p: t, text: text || null })
   bump(g, t, text ? 'clues' : 'missed')
+  if (text) {
+    bump(g, t, 'clen', Array.from(text).length)
+    if (g.turnAt && Date.now() - g.turnAt <= FAST_MS) bump(g, t, 'fast')
+  }
   g.turnIdx++
 
   // Indices manqués par ce joueur dans la manche en cours (tous manqués = éjection)

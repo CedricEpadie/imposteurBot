@@ -46,7 +46,7 @@ test('l’imposteur qui survit marque des points ; le classement cumule', async 
   assert.ok(all[0].points >= all[all.length - 1].points, 'classement trié')
 
   await b.send(G, PL[1], '/top')
-  const top = b.image(/Classement du groupe/)
+  const top = b.image(/Classement de la semaine/)
   assert.match(top, /CLASSEMENT/)
   assert.doesNotMatch(top, /SESSION/)
   await b.send(G, PL[1], '/stats')

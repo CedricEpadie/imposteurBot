@@ -1,8 +1,8 @@
 // Comportement des joueurs pendant une partie : compteurs enregistrés avec le résultat, qui servent aux surnoms et aux titres.
-// g.stats = { <numéro du joueur>: { votes, right, wrong, received, abstain, talk, clues, missed, stolen } }
+// g.stats = { <numéro du joueur>: { votes, right, wrong, received, abstain, talk, clues, missed, stolen, clen, fast, herd, fell, caught, ejected } }
 import { findPlayer } from './players.js'
 
-export const FIELDS = ['votes', 'right', 'wrong', 'received', 'abstain', 'talk', 'clues', 'missed', 'stolen']
+export const FIELDS = ['votes', 'right', 'wrong', 'received', 'abstain', 'talk', 'clues', 'missed', 'stolen', 'clen', 'fast', 'herd', 'fell', 'caught', 'ejected']
 const TALK_CAP = 40 // un joueur qui spamme ne fausse pas son profil
 
 export const bump = (g, p, key, n = 1) => {

@@ -76,7 +76,7 @@ export const rulesCaption = () => {
     `🕵️ *L’IMPOSTEUR* — les règles en image ☝️\n\n` +
     `📩 Rôle non reçu ? *${P}imposteur mot* en privé au bot.\n` +
     `📊 *${P}imposteur etat* : où en est la partie\n` +
-    `🏆 *${P}imposteur top* : classement • *${P}imposteur stats* : tes statistiques\n` +
+    `🏆 *${P}top* : classement de la semaine (*${P}top global*) • *${P}stats* : tes statistiques • *${P}defis* : défis de la semaine\n` +
     `📦 *${P}imposteur packs* : packs de mots (foot, musique, Yaoundé, Douala…)\n` +
     `🔧 Admin : *${P}imposteur ajouter* (mots) • *${P}imposteur reset* (effacer les scores)`
   )

@@ -16,12 +16,14 @@ import { getMode } from '../modes/index.js'
 import { gameRecap } from '../recap.js'
 import { setupManche } from '../round.js'
 import { finalizeScores, gameLines } from '../scoring.js'
-import { recordGame, playerStats } from '../../storage/scores.js'
+import { recordGame, groupStats, withPeers } from '../../storage/scores.js'
+import { completeChallenges } from '../challenges.js'
 import { titlesOf, nicknameOf, MIN_GAMES } from '../titles.js'
 import { askTurn } from './clues.js'
 import { count, ie, roleReveal, stillThere } from '../wording.js'
 import { host, phrase } from '../voice.js'
 import { persistGame } from '../persistence.js'
+import { bump } from '../behavior.js'
 
 const P = config.prefix
 const { guessSeconds, clueRounds, minPlayers } = config.game
@@ -35,6 +37,7 @@ const { rounds } = config
 export const ejectForSilence = async (key, g, p) => {
   g.ejected ??= new Set()
   g.ejected.add(p)
+  bump(g, p, 'ejected')
   if (isImposter(g, p)) {
     await say(key, `🚪 ${tag(p.jid)} n’a donné aucun de ses ${clueRounds} indices : éjecté de la partie ! C’était ${roleReveal(true)}.\n${host('ejectedLiar')}`, [p.jid])
     await conclude(key, 'civils', `🚪 ${tag(p.jid)} éjecté pour silence : la partie s’arrête, tous les civils marquent ${count(config.scoring.civilsWin, 'point')}.`, [p.jid])
@@ -65,6 +68,8 @@ export const resolveVote = async (key, g, { accused, tie, ranking }) => {
   }
 
   const wasImposter = isImposter(g, accused)
+  for (const [voter, target] of g.votes) if (target === accused && voter !== accused) bump(g, voter, 'herd') // a voté comme le groupe
+  bump(g, accused, wasImposter ? 'caught' : 'fell')
 
   if (!multi) {
     if (!wasImposter) return conclude(key, 'imposteur', `❌ Le groupe a accusé ${tag(accused.jid)}… mais c’était un civil !\n${host('wrongAccuse', tag(accused.jid))}`, extra)
@@ -149,10 +154,10 @@ export const onGuessText = async (g, { chat, me, text }) => {
 const progress = (g, before, after) => {
   const out = []
   for (const p of g.players) {
-    const prev = before.get(p.num)
-    const now = after.get(p.num)
+    const prev = withPeers(before, p.num)
+    const now = withPeers(after, p.num)
     if (!now) continue
-    const had = new Map(titlesOf(prev || { games: 0, impWins: 0, rightVotes: 0, stolen: 0, bestStreak: 0, civWins: 0 }).map((x) => [x.id, x.tier]))
+    const had = new Map(titlesOf(prev || {}).map((x) => [x.id, x.tier]))
     for (const ti of titlesOf(now)) if ((had.get(ti.id) || 0) < ti.tier) out.push(`🏅 ${tag(p.jid)} débloque le titre *${ti.name}* !`)
     const old = prev ? nicknameOf(prev) : null
     const nick = nicknameOf(now)
@@ -176,11 +181,12 @@ export const conclude = async (key, winner, reason, extraMentions = [], viaGuess
   let news = []
   const totals = new Map() // numéro → total de points après la partie
   try {
-    const before = new Map(rows.map((r) => [r.num, playerStats(key, r.num)]))
+    const before = groupStats(key)
     recordGame(key, g.gameId, rows)
-    const after = new Map(rows.map((r) => [r.num, playerStats(key, r.num)]))
-    for (const [num, s] of after) if (s) totals.set(num, s.points)
-    news = progress(g, before, after)
+    const challenges = completeChallenges(key, g.players) // défis de la semaine relevés (avant le calcul des titres : « Chasseur de défis »)
+    const after = groupStats(key)
+    for (const r of rows) if (after.has(r.num)) totals.set(r.num, after.get(r.num).points)
+    news = [...progress(g, before, after), ...challenges]
   } catch (e) {
     console.error('[imposteur] enregistrement des scores impossible :', e.message)
   }

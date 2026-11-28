@@ -29,7 +29,7 @@ export default {
         `⭐ Points : vote juste +${config.scoring.rightVote} • victoire des civils +${config.scoring.civilsWin} • imposteur gagnant +${config.scoring.imposterWin} • mot deviné +${config.scoring.imposterGuess}\n\n` +
         `📩 Rôle non reçu ? *${P}imposteur mot* en privé au bot.\n` +
         `📊 *${P}imposteur etat* : où en est la partie\n` +
-        `🏆 *${P}imposteur top* : classement (saison et général) • *${P}imposteur stats* : tes statistiques\n` +
+        `🏆 *${P}top* : classement de la semaine (*${P}top global* : depuis le début) • *${P}stats* : tes statistiques de la semaine (*${P}stats global*) • *${P}defis* : défis de la semaine\n` +
         `📦 *${P}imposteur packs* : packs de mots (foot, musique, Yaoundé, Douala…)\n` +
         `🔧 Admin : *${P}imposteur ajouter* (mots) • *${P}imposteur reset* (effacer les scores)`
     // Carte en image + commandes en légende ; texte complet si l’image est impossible

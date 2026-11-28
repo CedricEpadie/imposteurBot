@@ -24,6 +24,7 @@ import help from './help.js'
 import role from './role.js'
 import test from './test.js'
 import stats from './stats.js'
+import defis from './defis.js'
 import format from './format.js'
 import packs from './packs.js'
 import addWords from './add-words.js'
@@ -31,7 +32,7 @@ import reset from './reset.js'
 import backup from './backup.js'
 
 // `open` n’est pas dans la liste : c’est la commande par défaut (voir router.js)
-const COMMANDS = [role, test, help, status, top, stats, mode, format, packs, addWords, reset, backup, join, go, vote, stop]
+const COMMANDS = [role, test, help, status, top, stats, defis, mode, format, packs, addWords, reset, backup, join, go, vote, stop]
 
 export const openCommand = open
 

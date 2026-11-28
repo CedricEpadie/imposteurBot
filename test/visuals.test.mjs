@@ -13,7 +13,7 @@ test('/aide : carte des règles en image, commandes en légende', async () => {
   assert.match(svg, /RÈGLES DU JEU/)
   assert.match(svg, /POINTS/)
   assert.match(svg, /Variante « proche »/, 'les variantes de mode figurent sur la carte')
-  assert.ok(b.has(/imposteur etat/) && b.has(/imposteur top/), 'les commandes restent en texte')
+  assert.ok(b.has(/imposteur etat/) && b.has(/top global/), 'les commandes restent en texte')
 })
 
 test('charte : toutes les images utilisent la même palette et la même police', async () => {

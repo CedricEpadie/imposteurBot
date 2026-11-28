@@ -46,6 +46,18 @@ const MIGRATIONS = [
   ALTER TABLE results ADD COLUMN missed   INTEGER NOT NULL DEFAULT 0;  -- indices manqués (temps écoulé)
   ALTER TABLE results ADD COLUMN stolen   INTEGER NOT NULL DEFAULT 0;  -- victoires volées en devinant le mot
   `,
+  `
+  -- v1.11 : style de jeu plus fin (surnoms) — longueur et rapidité des indices, alignement sur le groupe, sorties de partie
+  ALTER TABLE results ADD COLUMN clen    INTEGER NOT NULL DEFAULT 0;  -- total de lettres des indices donnés
+  ALTER TABLE results ADD COLUMN fast    INTEGER NOT NULL DEFAULT 0;  -- indices donnés en moins de 10 s
+  ALTER TABLE results ADD COLUMN herd    INTEGER NOT NULL DEFAULT 0;  -- votes pour le joueur finalement désigné par le groupe
+  ALTER TABLE results ADD COLUMN fell    INTEGER NOT NULL DEFAULT 0;  -- éliminé par un vote alors qu'il était civil
+  ALTER TABLE results ADD COLUMN caught  INTEGER NOT NULL DEFAULT 0;  -- démasqué (éliminé par un vote) alors qu'il était imposteur
+  ALTER TABLE results ADD COLUMN ejected INTEGER NOT NULL DEFAULT 0;  -- éjecté pour silence
+  -- Version du suivi : 0 = avant la v1.10 (rien de mesuré), 1 = v1.10, 2 = v1.11. Les surnoms ne comparent que ce qui a été mesuré.
+  ALTER TABLE results ADD COLUMN tracking INTEGER NOT NULL DEFAULT 0;
+  UPDATE results SET tracking = 1 WHERE clues + missed > 0;
+  `,
 ]
 
 let db = null

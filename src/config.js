@@ -43,9 +43,10 @@ export const config = {
   },
 
   // Anti-spam : délai (en secondes) entre deux usages d'une même commande par un même joueur (les admins en sont dispensés)
-  cooldowns: { etat: 10, stats: 15, top: 20 },
+  cooldowns: { etat: 10, stats: 15, top: 20, defis: 15 },
 
-  // Thème saisonnier des images : auto (Halloween, Noël selon la date), ou noel / halloween / none pour forcer
+  // Thème de fête des images : auto (Halloween, Noël, Nouvel An, Saint-Valentin, Pâques, fête de l'Unité, Ramadan, Aïd, Tabaski selon la date),
+  // ou halloween / noel / nouvelan / valentin / paques / cameroun / ramadan / aid / tabaski / none pour forcer
   theme: (env.THEME || 'auto').toLowerCase(),
 
   // Rendu des images : nombre maximum de rendus simultanés (les autres attendent leur tour ; limite la mémoire)

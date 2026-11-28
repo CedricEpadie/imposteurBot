@@ -56,24 +56,24 @@ docker compose stop && docker compose run --rm bot node scripts/restore.js      
 ```
 Copie régulièrement l'archive hors du serveur (autre machine, stockage externe) : si le disque meurt, les sauvegardes locales partent avec.
 
-## 5. CI : les vérifications automatiques
+## 5. CI : les vérifications automatiques (workflow `deploy`, jobs `tests` et `docker`)
 1. Crée un dépôt GitHub **privé** (New repository, sans README). `.env`, `auth/`, `data/` sont déjà ignorés (`.gitignore`) : ne les ajoute jamais.
 2. Pousse le code :
    ```bash
    cd ~/imposteurBot
    git init && git add . && git status     # vérifie : ni .env, ni auth/, ni data/
-   git commit -m "Bot L'Imposteur" && git branch -M main
-   git remote add origin git@github.com:TON-COMPTE/imposteurBot.git && git push -u origin main
+   git commit -m "Bot L'Imposteur" && git branch -M master
+   git remote add origin git@github.com:TON-COMPTE/imposteurBot.git && git push -u origin master
    ```
    (Clé SSH refusée : `ssh-keygen -t ed25519`, puis colle `~/.ssh/id_ed25519.pub` dans GitHub → Settings → SSH and GPG keys.)
-3. Onglet **Actions** : « CI » se lance seul → tests, rendu réel des images, audit, construction de l'image Docker, test dans l'image.
+3. Onglet **Actions** : le workflow « deploy » se lance seul → job *Tests (Node 22)* (tests, rendu réel des images, audit) puis job *Image Docker* (construction et test dans l'image). Sur une Pull Request, seuls ces deux jobs tournent.
 4. Badge : remplace `TON-COMPTE` dans la 1re ligne du README.
-5. Protéger `main` : Settings → Branches → Add rule → « Require status checks to pass » → `Tests (Node 22)` et `Image Docker`.
+5. Protéger `master` : Settings → Branches → Add rule → « Require status checks to pass » → `Tests (Node 22)` et `Image Docker`.
 6. Publier une image (facultatif) : `git tag v1.9.1 && git push --tags` → image sur `ghcr.io/TON-COMPTE/imposteurbot`
    (Settings → Actions → General → Workflow permissions : « Read and write »).
 
 ## 6. CD : déploiement automatique
-Quand le CI est vert sur `main`, le workflow `.github/workflows/deploy.yml` se connecte en SSH au serveur, fait `git reset --hard origin/main`,
+Quand les jobs *tests* et *docker* sont verts sur `master`, le 3e job du même fichier `.github/workflows/deploy.yml` (*Mise à jour du serveur*) se connecte en SSH au serveur, fait `git reset --hard origin/master`,
 `docker compose up -d --build`, puis attend que le conteneur soit **healthy** (sinon le déploiement est marqué en échec et GitHub te prévient).
 
 **a) Relier le dossier du serveur au dépôt** (une fois ; `.env` et le volume Docker ne sont pas touchés) :
@@ -83,7 +83,7 @@ ssh-keygen -t ed25519 -f ~/.ssh/deploy_github -N ""        # clé de lecture du 
 cat ~/.ssh/deploy_github.pub                               # → GitHub : dépôt → Settings → Deploy keys → Add (lecture seule)
 printf 'Host github.com\n  IdentityFile ~/.ssh/deploy_github\n' >> ~/.ssh/config
 git init && git remote add origin git@github.com:TON-COMPTE/imposteurBot.git
-git fetch origin main && git reset --hard origin/main
+git fetch origin master && git reset --hard origin/master
 ```
 **b) Clé SSH pour GitHub Actions** (sur ton PC) :
 ```bash
@@ -95,14 +95,14 @@ ssh-copy-id -i imposteur_deploy.pub UTILISATEUR@IP_DU_SERVEUR
 Variable facultative (onglet Variables) : `DEPLOY_DIR` si le bot n'est pas dans `~/imposteurBot`.
 Puis supprime `imposteur_deploy` de ton PC.
 
-**d) Test** : un petit commit sur `main` → Actions : CI puis Deploy. Ou bouton « Run workflow » sur Deploy. Sur le serveur : `docker compose ps`.
+**d) Test** : un petit commit sur `master` → Actions : le workflow « deploy » enchaîne tests, image et mise à jour du serveur. Sur le serveur : `docker compose ps`.
 
 Notes : un déploiement redémarre le bot (une partie en cours est reprise) → évite de pousser en pleine soirée de jeu.
 Retour arrière : `git revert <commit>` puis push. Le bot t'envoie un message WhatsApp à chaque redémarrage (§8), tu vois donc le déploiement passer.
 
 ## 7. Dependabot : dépendances à jour
 `.github/dependabot.yml` : chaque lundi, GitHub ouvre une Pull Request si une dépendance (npm, image Node, actions GitHub) a une nouvelle version.
-Le CI la teste ; si c'est vert, tu fusionnes (donc le CD déploie). **Baileys est exclu** : il reste figé en rc14 jusqu'à ce que tu décides de le monter
+Le job *tests* la teste ; si c'est vert, tu fusionnes (donc le CD déploie). **Baileys est exclu** : il reste figé en rc14 jusqu'à ce que tu décides de le monter
 à la main (change la version dans `package.json`, `npm install`, teste avec `/imposteur test`). Pas de saut de version majeure de Node automatique.
 Activation : Settings → Code security → « Dependabot alerts » et « Dependabot security updates » (alertes de vulnérabilités).
 

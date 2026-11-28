@@ -1,6 +1,6 @@
 # 🕵️ Bot WhatsApp — L'Imposteur
 
-![CI](https://github.com/TON-COMPTE/imposteurBot/actions/workflows/ci.yml/badge.svg)
+![deploy](https://github.com/TON-COMPTE/imposteurBot/actions/workflows/deploy.yml/badge.svg)
 
 Bot autonome (Baileys), prévu pour tourner dans **Docker** (recommandé) ou directement avec Node + pm2. Préfixe par défaut : `/`.
 Mise en production complète (Docker, migration, CI/CD GitHub, alertes) : **[docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md)**.
@@ -102,9 +102,8 @@ Les cartes utilisent des polices système : sur un serveur minimal, installe-en 
 | Imposteur gagnant (chaque imposteur encore en jeu) | +3 |
 | Imposteur démasqué qui devine le mot | +2 en plus |
 
-Le bot affiche les points de chaque manche (format 2), les points de la partie et le **classement de la session**
-(parties du groupe séparées de moins de 6 h) à la fin. `/imposteur top` montre la session et le classement général,
-`/imposteur stats [@joueur]` les statistiques d'un joueur (parties, victoires, points, rôle imposteur / civil).
+Le bot affiche les points de chaque manche (format 2) et, à la fin, les points de la partie et le total de chaque participant.
+Les scores sont **hebdomadaires** (voir v1.11) : `/top` = la semaine, `/top global` = depuis le début ; `/stats [@joueur]` = la semaine, `/stats global` = depuis le début.
 Les barèmes sont dans `src/config.js` (`scoring`).
 
 ### Identité visuelle (une seule charte)
@@ -162,12 +161,13 @@ Réservées au compte du bot et aux numéros listés dans `ADMIN_NUMBERS` (`.env
 | `/imposteur stop` | annuler (lanceur) |
 | `/imposteur format 1\|2` | choisit le format (lanceur) : un seul vote, ou plusieurs manches |
 | `/imposteur packs [id…\|tous]` | voir ou choisir les packs de mots |
-| `/imposteur top` | classement de la session et classement général |
-| `/imposteur stats [@joueur]` | statistiques d'un joueur |
+| `/top` · `/top global` | classement de la semaine · depuis le début |
+| `/stats [@joueur]` · `/stats global` | statistiques de la semaine · depuis le début |
+| `/defis` | les trois défis de la semaine et ta progression |
 | `/imposteur ajouter …` / `reset` | admin : ajouter des mots / effacer les scores |
 | `/imposteur aide` | règles |
 
-Raccourcis : `/join` `/go` `/mot` `/etat` `/vote` `/stop` `/top` `/stats` `/test` `/aide` `/mode` `/format` `/packs`.
+Raccourcis : `/defis` `/join` `/go` `/mot` `/etat` `/vote` `/stop` `/top` `/stats` `/test` `/aide` `/mode` `/format` `/packs`.
 
 Les réglages du jeu (durées, nombre de joueurs, barème des points, règles des manches) sont dans `src/config.js`.
 
@@ -303,3 +303,26 @@ Le bot avertit après le premier indice manqué. Règle écrite dans `/aide`, da
 - **Bilan de fin de partie** : pour chaque participant, les points de la partie (« PARTIE ») et son total de points (« TOTAL », tous les points du groupe).
 - **Singulier / pluriel** : la devinette de l'imposteur accepte « mur » pour « murs » (et l'inverse), « cheval / chevaux », « eau / eaux », sans tenir compte des accents ni de la casse.
   Les indices suivent la même règle : donner le pluriel de son mot secret, ou répéter au pluriel l'indice d'un autre, est refusé.
+
+
+## Semaines, défis, surnoms, fêtes (v1.11)
+
+- **Scores hebdomadaires** (`storage/scores.js`) : la semaine va du **lundi 00:00 au dimanche 24:00** (heure du serveur, variable `TZ`). `/top` et `/stats` montrent la semaine en cours ;
+  `/top global` et `/stats global` montrent tout depuis le début (rien n'est effacé : seule la vue change). Le lundi, le bot annonce dans chaque groupe qui a joué
+  le **MVP de la semaine** (podium en image avec couronne, récompenses : Roi du bluff, Fin limier, Meilleure série, Voleur de mots, Le plus assidu, nombre de défis relevés)
+  et retient le MVP (titres *MVP de la semaine* → *Double MVP* → *Légende des semaines*). Les anciens champions mensuels comptent toujours.
+- **Défis de la semaine** (`game/challenges.js`, `/defis`) : 3 défis par groupe (bronze, argent, or), tirés au sort parmi 12 types, identiques pour tout le groupe et changeant chaque semaine
+  (gagner N parties, jouer N jours différents, démasquer N imposteurs, donner N indices en moins de 10 s…). Barres de progression sur `/stats`, annonce à la fin de la partie qui en relève un.
+  Aucun point en plus : c'est la gloire et le titre *Chasseur de défis*.
+- **Séries** : victoires d'affilée, **jours de suite** et **semaines de suite** (avec records) sur la carte de profil.
+- **Titres** : 15 familles à paliers bronze / argent / or (points, indices, rapidité, messages, régularité, défis, MVP, insaisissable…). Une ligne dans `TITLES` pour en ajouter.
+- **Surnoms, analyse de style** (`game/style.js`) : 24 styles (Le Poète, Le Télégraphiste, L'Éclair, Le Mouton, Le Franc-tireur, Le Martyr, L'Anguille, Le Noctambule, Le Lève-tôt, Le Stratège, L'Équilibriste…).
+  Chaque style repose sur une mesure avec échantillon minimum ; le score mélange le **seuil absolu** et la **position dans le groupe** (un « bavard » dans un groupe de bavards est atténué).
+  La carte affiche le surnom, **la raison chiffrée** (« messages par partie : 8,0 (groupe : 4,1) »), jusqu'à 3 traits compatibles et la fiabilité (nombre de parties).
+  Les nouvelles mesures (longueur et rapidité des indices, vote comme la majorité, éliminations, éjections) sont suivies depuis la v1.11 (migration 3 : version de suivi par partie) :
+  les anciennes parties ne sont jamais comptées comme « zéro » dans ces mesures.
+- **Thèmes de fête** (`render/seasonal.js`) : Halloween, Noël, Nouvel An, Saint-Valentin, Pâques (du vendredi saint au lundi), fête de l'Unité (Cameroun, 19-21 mai), **Ramadan**, **Aïd el-Fitr**, **Tabaski**
+  (dates lunaires calculées avec le calendrier hégirien, ±1 jour). `THEME=ramadan|aid|tabaski|paques|…|none` dans `.env` pour forcer ou couper. Un vœu s'ajoute à l'annonce du MVP et au `/top`.
+- **`/top` tague tout le groupe sans @ visible** (`whatsapp/members.js`) : la légende de l'image n'a aucun @, mais tous les membres sont mentionnés (liste du groupe mise en cache 10 min).
+  Si WhatsApp ne donne pas la liste, repli sur les joueurs du classement.
+- **CI/CD** : un seul workflow `.github/workflows/deploy.yml` (tests → image Docker → mise à jour du serveur sur `master`).
