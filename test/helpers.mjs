@@ -44,6 +44,7 @@ export const boot = async ({ env = {}, seed = 1 } = {}) => {
   Date.now = () => now
   const flush = async () => {
     for (let i = 0; i < 30; i++) await new Promise((r) => realSetImmediate(r))
+    if (globalThis.__renderIdle) await globalThis.__renderIdle() // test de charge : attend les vrais rendus d'images
   }
   const advance = async (ms) => {
     const target = now + ms

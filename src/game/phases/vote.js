@@ -12,6 +12,7 @@ import { header } from '../phases-meta.js'
 import { pl, count, voteQuestion } from '../wording.js'
 import { scoreVotes, mancheLines } from '../scoring.js'
 import { resolveVote } from './verdict.js'
+import { host, phrase } from '../voice.js'
 
 const { voteSeconds } = config.game
 
@@ -40,7 +41,7 @@ export const startVote = async (key) => {
   armVote(g, voteSeconds)
   return say(
     key,
-    `${header('vote', g)}🗳️ *${voteQuestion(g)}*\n\n${listOf(g)}\n\n` +
+    `${header('vote', g)}🗳️ *${voteQuestion(g)}*\n${host('voteStart')}\n\n${listOf(g)}\n\n` +
       `👉 Pour voter, *mentionne (@)* ton suspect : un seul @ par message.\n` +
       `Répondre à un message ne compte pas • pas de vote pour soi-même • le dernier vote compte • les votes restent secrets jusqu’au dépouillement.\n` +
       `⏱️ *${voteSeconds} s* (le vote s’arrête dès que tout le monde a voté).`,
@@ -54,7 +55,7 @@ export const endVote = async (key) => {
   stopTimers(g)
   g.phase = 'counting'
 
-  await say(key, `🔔 *Le vote est clos !*\n🥁 Dépouillement en cours…`)
+  await say(key, `🔔 *Le vote est clos !*\n${phrase('counting')}`)
   await typing(key, 2500)
   if (!isActive(g)) return
 

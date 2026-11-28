@@ -13,6 +13,8 @@ import { getMode } from '../modes/index.js'
 import { clueLines } from '../recap.js'
 import { count } from '../wording.js'
 import { startDiscuss } from './discussion.js'
+import { bump } from '../behavior.js'
+import { host, sometimes } from '../voice.js'
 
 const { clueRounds, clueSeconds } = config.game
 
@@ -32,7 +34,7 @@ export const askTurn = async (key) => {
     head =
       header('clues', g) +
       `Chacun donne *un seul mot* (pas de phrase) en rapport avec son mot secret, sans le dire ni répéter l’indice d’un autre.\n` +
-      `🔁 ${count(clueRounds, 'tour')} • ⏱️ ${clueSeconds} s par joueur\n\n` +
+      `🔁 ${count(clueRounds, 'tour')} • ⏱️ ${clueSeconds} s par joueur\n${host('cluesStart')}\n\n` +
       `📋 *Ordre de passage*\n${g.order.map((p, i) => `${i + 1}. ${tag(p.jid)}`).join('\n')}\n\n`
   } else if (pos === 1) {
     head = `🔁 *Tour ${round}/${clueRounds}* — on repart dans le même ordre !\n\n`
@@ -64,13 +66,14 @@ export const takeClue = async (key, text) => {
   const round = Math.floor(g.turnIdx / n) + 1
   const pos = (g.turnIdx % n) + 1
   g.clues.push({ manche: g.manche, round, p: t, text: text || null })
+  bump(g, t, text ? 'clues' : 'missed')
   g.turnIdx++
 
   await say(
     key,
     text
-      ? `✅ ${tag(t.jid)} a donné son indice : *${text}* (${pos}/${n})`
-      : `⏱️ ${tag(t.jid)} n’a rien dit à temps : indice passé… 🐢 (${pos}/${n})`,
+      ? `✅ ${tag(t.jid)} a donné son indice : *${text}* (${pos}/${n})${sometimes(0.25, 'clueReact')}`
+      : `⏱️ ${tag(t.jid)} n’a rien dit à temps : indice passé… 🐢 (${pos}/${n})\n${host('clueTimeout')}`,
     [t.jid]
   )
   if (!isActive(g)) return

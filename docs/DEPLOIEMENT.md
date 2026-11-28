@@ -1,6 +1,6 @@
 # Déploiement : Docker, CI/CD GitHub, alertes
 
-Sommaire : 1. Docker · 2. Migrer l'existant · 3. Mises à jour · 4. Sauvegardes · 5. CI · 6. CD · 7. Dependabot · 8. Alertes · 9. Dépannage
+Sommaire : 1. Docker · 2. Migrer l'existant · 3. Mises à jour · 4. Sauvegardes · 5. CI · 6. CD · 7. Dependabot · 8. Alertes · 9. Test de charge · 10. Dépannage
 
 ## 0. Le message `npm ls … invalid: "latest"`
 La version installée (rc14) est la bonne ; l'ancien `package.json` demandait `"latest"`. Avec le `package.json` actuel (version figée) :
@@ -122,7 +122,12 @@ Un bot déconnecté ne peut pas écrire : ces alertes partent dès la reconnexio
 4. Configure la notification (e-mail, Telegram…) dans le service.
 Le bot appelle cette adresse chaque minute **tant qu'il est connecté à WhatsApp** : plus d'appel = alerte (serveur éteint, bot planté ou déconnecté).
 
-## 9. Dépannage
+## 9. Test de charge
+`npm ci && npm run loadtest` (hors Docker, avec les dépendances de développement) : 10 groupes × 15 joueurs jouent en même temps avec le vrai rendu d'images.
+`LOAD_GROUPS=30 npm run loadtest` pour pousser plus loin. Le test échoue si une partie ne finit pas ou si la mémoire dépasse 480 Mo.
+Si tu héberges beaucoup de groupes, ajuste `mem_limit` dans `docker-compose.yml` et `RENDER_CONCURRENCY` dans `.env`.
+
+## 10. Dépannage
 - `docker compose ps` → **unhealthy** : `docker compose logs --tail 50` ; la sonde échoue si le bot est bloqué ou déconnecté depuis plus de 12 min.
 - Session invalidée (401) : une copie de `auth/` est gardée ; relie avec `docker compose run --rm bot` (QR).
 - Test du rendu des images : `docker compose run --rm bot node scripts/smoke.js`.

@@ -15,6 +15,7 @@ const { getDb } = await import('./src/storage/db.js')
 const { loadPacks, getPacks } = await import('./src/content/packs.js')
 const { startBackups } = await import('./src/storage/backup.js')
 const { startHeartbeat } = await import('./src/core/heartbeat.js')
+const { startSeasons } = await import('./src/game/seasons.js')
 const { closeDb } = await import('./src/storage/db.js')
 const { startConnection } = await import('./src/whatsapp/connection.js')
 
@@ -42,6 +43,7 @@ try {
 loadPacks()
 startBackups()
 startHeartbeat()
+startSeasons()
 console.log(`📦 ${getPacks().length} pack(s) de mots : ${getPacks().map((p) => p.id).join(', ')}`)
 
 // Vérifie au démarrage que les cartes de rôle peuvent être générées

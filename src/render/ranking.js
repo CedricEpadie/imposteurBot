@@ -41,9 +41,9 @@ const podium = (rows, y) => {
 }
 
 // rows = classement général trié ; session = classement de la session en cours (peut être vide)
-export const rankingSvg = (rows, session = []) => {
+export const rankingSvg = (rows, session = [], { title = 'CLASSEMENT', subtitle = 'Les meilleurs détectives du groupe' } = {}) => {
   let y = 160
-  let body = heading('CLASSEMENT', 'Les meilleurs détectives du groupe', C.gold, { y: 80 })
+  let body = heading(title, subtitle, C.gold, { y: 80 })
   body += podium(rows, y)
   y += 330
 

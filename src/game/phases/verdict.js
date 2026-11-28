@@ -16,9 +16,11 @@ import { getMode } from '../modes/index.js'
 import { gameRecap } from '../recap.js'
 import { setupManche } from '../round.js'
 import { finalizeScores, gameLines } from '../scoring.js'
-import { recordGame, sessionRanking } from '../../storage/scores.js'
+import { recordGame, sessionRanking, playerStats } from '../../storage/scores.js'
+import { titlesOf, nicknameOf, MIN_GAMES } from '../titles.js'
 import { askTurn } from './clues.js'
 import { count, ie, roleReveal, stillThere } from '../wording.js'
+import { host, phrase } from '../voice.js'
 
 const P = config.prefix
 const { guessSeconds } = config.game
@@ -33,22 +35,22 @@ export const resolveVote = async (key, g, { accused, tie, ranking }) => {
 
   if (!accused) {
     const why = tie
-      ? '⚖️ Égalité des votes : personne n’est démasqué.'
-      : `🐔 Personne n’a osé voter : ${ie(g, 'l’imposteur passe', 'les imposteurs passent')} entre les mailles du filet.`
+      ? `⚖️ Égalité des votes : personne n’est démasqué.\n${host('tie')}`
+      : `🐔 Personne n’a osé voter : ${ie(g, 'l’imposteur passe', 'les imposteurs passent')} entre les mailles du filet.\n${host('noVote')}`
     return multi ? nextManche(key, g, why) : conclude(key, 'imposteur', why, extra)
   }
 
   const wasImposter = isImposter(g, accused)
 
   if (!multi) {
-    if (!wasImposter) return conclude(key, 'imposteur', `❌ Le groupe a accusé ${tag(accused.jid)}… mais c’était un civil !`, extra)
+    if (!wasImposter) return conclude(key, 'imposteur', `❌ Le groupe a accusé ${tag(accused.jid)}… mais c’était un civil !\n${host('wrongAccuse', tag(accused.jid))}`, extra)
     g.guesser = accused
     return startGuess(key, g, accused)
   }
 
   // Plusieurs manches : le joueur désigné est éliminé, son rôle est révélé
   g.eliminated.add(accused)
-  await say(key, `🚪 ${tag(accused.jid)} est éliminé… c’était ${roleReveal(wasImposter)} !`, [accused.jid])
+  await say(key, `🚪 ${tag(accused.jid)} est éliminé… c’était ${roleReveal(wasImposter)} !\n${host(wasImposter ? 'eliminatedImposter' : 'eliminatedCivil')}`, [accused.jid])
   if (!isActive(g)) return
 
   const impsLeft = aliveImposters(g)
@@ -89,7 +91,7 @@ export const startGuess = (key, g, top) => {
   armGuess(g, guessSeconds)
   return say(
     key,
-    `🎯 *${tag(top.jid)} est bien ${ie(g, 'l’imposteur', 'un imposteur')} !*\n\n` +
+    `🎯 *${tag(top.jid)} est bien ${ie(g, 'l’imposteur', 'un imposteur')} !*\n${host('unmasked', tag(top.jid))}\n\n` +
       `${header('verdict', g)}Dernière chance : devine le *mot ${getMode(g.mode).guessWordLabel}* ` +
       `(catégorie : ${g.category}) en *un seul message*.\n⏱️ Tu as *${guessSeconds} s*. Si tu le trouves, ${ie(g, 'tu voles la victoire', 'les imposteurs volent la victoire')} !`,
     [top.jid]
@@ -104,16 +106,34 @@ export const onGuessText = async (g, { chat, me, text }) => {
   const ok = guess.length >= 3 && (guess === secret || guess.includes(secret) || secret.split(' ').includes(guess))
   stopTimers(g)
   g.phase = 'verdict' // un seul essai
-  await say(chat, `🎯 ${tag(g.guesser.jid)} tente : *${text.slice(0, 40)}*\n🥁 …`, [g.guesser.jid])
+  await say(chat, `🎯 ${tag(g.guesser.jid)} tente : *${text.slice(0, 40)}*\n🥁 …\n${host('guessTry')}`, [g.guesser.jid])
   await typing(chat, 2500)
   if (!isActive(g)) return
   return conclude(
     chat,
     ok ? 'imposteur' : 'civils',
-    ok ? `🎯 ${ie(g, 'L’imposteur a deviné le mot : il vole', 'Le dernier imposteur a deviné le mot : les imposteurs volent')} la victoire !` : `❌ « ${text.slice(0, 40)} » n’était pas le bon mot.`,
+    ok
+      ? `🎯 ${ie(g, 'L’imposteur a deviné le mot : il vole', 'Le dernier imposteur a deviné le mot : les imposteurs volent')} la victoire !\n${host('guessHit')}`
+      : `❌ « ${text.slice(0, 40)} » n’était pas le bon mot.\n${host('guessMiss')}`,
     [],
     ok
   )
+}
+
+// Nouveaux titres et surnoms gagnés pendant la partie (comparaison avant / après l'enregistrement)
+const progress = (g, before) => {
+  const out = []
+  for (const p of g.players) {
+    const prev = before.get(p.num)
+    const now = playerStats(g.key, p.num)
+    if (!now) continue
+    const had = new Map(titlesOf(prev || { games: 0, impWins: 0, rightVotes: 0, stolen: 0, bestStreak: 0, civWins: 0 }).map((x) => [x.id, x.tier]))
+    for (const ti of titlesOf(now)) if ((had.get(ti.id) || 0) < ti.tier) out.push(`🏅 ${tag(p.jid)} débloque le titre *${ti.name}* !`)
+    const old = prev ? nicknameOf(prev) : null
+    const nick = nicknameOf(now)
+    if (now.games >= MIN_GAMES && old !== nick) out.push(`🏷️ ${tag(p.jid)} est désormais *${nick}*.`)
+  }
+  return out
 }
 
 // Fin de partie : points, classement, révélation des mots, récap. winner = 'civils' | 'imposteur'
@@ -122,8 +142,11 @@ export const conclude = async (key, winner, reason, extraMentions = [], viaGuess
   if (!g) return
   const rows = finalizeScores(g, winner, viaGuess)
   endGame(g)
+  let news = []
   try {
+    const before = new Map(rows.map((r) => [r.num, playerStats(key, r.num)]))
     recordGame(key, g.gameId, rows)
+    news = progress(g, before)
   } catch (e) {
     console.error('[imposteur] enregistrement des scores impossible :', e.message)
   }
@@ -137,10 +160,11 @@ export const conclude = async (key, winner, reason, extraMentions = [], viaGuess
   const imps = g.imposters.map((p) => tag(p.jid)).join(', ')
   const mentions = [...g.imposters.map((p) => p.jid), ...jidsOf(g), ...extraMentions]
   const winLine = winner === 'civils' ? `🎉 *Les civils gagnent !*` : `🥷 *${ie(g, 'L’imposteur gagne', 'Les imposteurs gagnent')} !*`
-  const bilan = `${winLine}\n${reason}\n\n${ie(g, '🥷 Imposteur', '🥷 Imposteurs')} : ${imps}\n${getMode(g.mode).reveal(g)}`
+  const bilan = `${winLine}\n${host(winner === 'civils' ? 'civilsWin' : 'imposterWin')}\n${reason}\n\n${ie(g, '🥷 Imposteur', '🥷 Imposteurs')} : ${imps}\n${getMode(g.mode).reveal(g)}`
   const sessionText = session.length ? `\n\n📊 *Classement de la session*\n${session.map((r, i) => `${MEDALS[i] || '▫️'} ${tag(r.jid)} — ${count(r.points, 'pt')}`).join('\n')}` : ''
   const recap = `📜 *Récap des indices*\n${gameRecap(g)}`
-  const commands = `\n\n🏆 *${P}imposteur top* : classement • *${P}imposteur stats* : tes stats • Rejouer : *${P}imposteur*`
+  const newsText = news.length ? `\n\n${news.join('\n')}` : ''
+  const commands = `${newsText}\n\n🏆 *${P}imposteur top* : classement • *${P}imposteur stats* : tes stats • Rejouer : *${P}imposteur*`
   const nameOf = (r) => {
     const p = g.players.find((x) => x.num === r.num)
     return p ? labelOf(p) : `+${r.num}`

@@ -34,6 +34,18 @@ const MIGRATIONS = [
     PRIMARY KEY (group_jid, key)
   );
   `,
+  `
+  -- v1.10 : comportement de chaque joueur dans la partie (surnoms et titres)
+  ALTER TABLE results ADD COLUMN votes    INTEGER NOT NULL DEFAULT 0;  -- votes émis
+  ALTER TABLE results ADD COLUMN right    INTEGER NOT NULL DEFAULT 0;  -- votes justes (civil → imposteur)
+  ALTER TABLE results ADD COLUMN wrong    INTEGER NOT NULL DEFAULT 0;  -- votes injustes (civil → civil)
+  ALTER TABLE results ADD COLUMN received INTEGER NOT NULL DEFAULT 0;  -- votes reçus (accusations subies)
+  ALTER TABLE results ADD COLUMN abstain  INTEGER NOT NULL DEFAULT 0;  -- votes manqués
+  ALTER TABLE results ADD COLUMN talk     INTEGER NOT NULL DEFAULT 0;  -- messages pendant le débat et le vote
+  ALTER TABLE results ADD COLUMN clues    INTEGER NOT NULL DEFAULT 0;  -- indices donnés
+  ALTER TABLE results ADD COLUMN missed   INTEGER NOT NULL DEFAULT 0;  -- indices manqués (temps écoulé)
+  ALTER TABLE results ADD COLUMN stolen   INTEGER NOT NULL DEFAULT 0;  -- victoires volées en devinant le mot
+  `,
 ]
 
 let db = null

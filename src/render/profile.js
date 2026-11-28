@@ -1,8 +1,9 @@
 // Carte de profil d’un joueur (/imposteur stats) : bilan, rôles, séries et forme récente.
 import { C, W } from './theme.js'
-import { canvas, heading, section, t, rect, pill, bar, fit, clip, plain } from './kit.js'
+import { canvas, heading, section, t, rect, pill, bar, fit, clip, plain, emWidth } from './kit.js'
 import { cleanName } from '../game/players.js'
 import { count } from '../game/wording.js'
+import { titlesOf, nextChallenge, nicknameOf } from '../game/titles.js'
 
 const pct = (a, b) => (b ? Math.round((100 * a) / b) : 0)
 export const ordinal = (n) => (n === 1 ? '1er' : `${n}e`)
@@ -25,7 +26,10 @@ export const profileSvg = (s, displayName) => {
   let body = heading('PROFIL DE JOUEUR', '', C.gold, { y: 80 })
 
   // Nom + rang
-  body += rect(36, y, W - 72, 92, { r: 20, fill: C.panel2 }) + t(64, y + 60, name, { size: fit(name, 480, 40, 22), weight: 'bold' })
+  body +=
+    rect(36, y, W - 72, 92, { r: 20, fill: C.panel2 }) +
+    t(64, y + 46, name, { size: fit(name, 480, 38, 22), weight: 'bold' }) +
+    t(64, y + 76, `« ${nicknameOf(s)} »`, { size: 22, fill: C.gold })
   if (s.rank) body += pill(W - 36 - 236, y + 20, 212, 52, `${ordinal(s.rank)} sur ${s.players}`, { fill: s.rank === 1 ? C.gold : C.line, color: s.rank === 1 ? C.bg : C.text, size: 26 })
   y += 116
 
@@ -45,6 +49,35 @@ export const profileSvg = (s, displayName) => {
   const hw = (W - 72 - 12) / 2
   body += tile(36, y, hw, 122, String(s.streak), s.streak > 1 ? 'victoires d’affilée' : 'victoire d’affilée', s.streak ? C.gold : C.dim) + tile(36 + hw + 12, y, hw, 122, String(s.bestStreak), 'meilleure série', C.blue)
   y += 170
+
+  // Titres obtenus (pastilles) et prochain défi (barre de progression)
+  body += section(y, 'TITRES', C.gold)
+  y += 36
+  const titles = titlesOf(s)
+  if (!titles.length) {
+    body += t(48, y + 28, 'Aucun titre pour l’instant : joue pour en débloquer !', { size: 22, fill: C.muted })
+    y += 44
+  } else {
+    let x = 36
+    for (const ti of titles) {
+      const label = ti.name
+      const w = Math.round(44 + emWidth(label) * 22)
+      if (x + w > W - 36) {
+        x = 36
+        y += 56
+      }
+      body += pill(x, y, w, 44, label, { fill: ti.tier >= ti.of ? C.gold : C.panel2, color: ti.tier >= ti.of ? C.bg : C.gold, size: 22 })
+      x += w + 10
+    }
+    y += 62
+  }
+  const next = nextChallenge(s)
+  if (next) {
+    body += t(48, y + 24, `Prochain défi : ${next.name}`, { size: 24, weight: 'bold' }) + t(W - 48, y + 24, `${next.value} / ${next.goal}`, { size: 24, weight: 'bold', fill: C.gold, anchor: 'end' })
+    body += bar(48, y + 40, W - 96, 14, next.value / next.goal, { fill: C.gold }) + t(48, y + 84, next.unit, { size: 22, fill: C.muted })
+    y += 112
+  }
+  y += 18
 
   // Forme récente : un rond par partie (vert = gagnée, rouge = perdue), I = imposteur, C = civil
   body += section(y, `FORME (${count(s.form.length, 'dernière partie', 'dernières parties')})`, C.gold)

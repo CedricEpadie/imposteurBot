@@ -9,6 +9,7 @@ import { fullRecap } from '../recap.js'
 import { canRender } from '../../render/svg.js'
 import { renderBoard } from '../../render/board.js'
 import { startVote } from './vote.js'
+import { host } from '../voice.js'
 
 const P = config.prefix
 const { discussSeconds } = config.game
@@ -28,7 +29,7 @@ export const startDiscuss = async (key) => {
   armDiscuss(g, discussSeconds)
 
   const outro =
-    `💬 Qui a donné un indice louche ? Défendez-vous, accusez-vous !\n` +
+    `${host('discuss')}\n💬 Qui a donné un indice louche ? Défendez-vous, accusez-vous !\n` +
     `⏱️ *${discussSeconds} s* de débat. Le lanceur peut taper *${P}imposteur vote* pour voter tout de suite.`
 
   // Tableau en image ; si l’image est impossible (sharp absent, envoi refusé), récapitulatif en texte

@@ -1,6 +1,6 @@
 {
   "name": "imposteur-bot",
-  "version": "1.9.1",
+  "version": "1.10.0",
   "description": "Bot WhatsApp du jeu de l'Imposteur (mot secret, indices, vote)",
   "type": "module",
   "main": "index.js",
@@ -13,6 +13,7 @@
     "logs": "pm2 logs imposteur",
     "status": "pm2 status",
     "smoke": "node scripts/smoke.js",
+    "loadtest": "node --import ./test/register-real-render.mjs scripts/loadtest.mjs",
     "restore": "node scripts/restore.js",
     "test": "node --import ./test/register.mjs --test --test-concurrency=1 test/*.test.mjs"
   },

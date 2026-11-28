@@ -30,6 +30,7 @@ export const serializeGame = (g) => {
     clues: g.clues.map((c) => ({ manche: c.manche, round: c.round, num: n(c.p), text: c.text })),
     ledger: g.ledger.map((e) => ({ num: n(e.p), pts: e.pts, reason: e.reason, manche: e.manche })),
     guesser: g.guesser ? n(g.guesser) : null,
+    stats: g.stats || {},
     votes: g.votes ? [...g.votes].map(([v, t]) => [n(v), n(t)]) : null,
   }
 }
@@ -64,6 +65,7 @@ export const deserializeGame = (s) => {
     timer: null,
     ticks: [],
   }
+  g.stats = s.stats || {}
   if (s.votes) g.votes = new Map(s.votes.map(([v, t]) => [ref(v), ref(t)]))
   return g
 }

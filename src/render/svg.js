@@ -5,6 +5,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { say, sayImage } from '../whatsapp/messenger.js'
+import { config } from '../config.js'
+import { makeLimiter } from '../core/limiter.js'
 
 // Polices embarquées (dossier fonts/) : DejaVu Sans + GNU Unifont en secours, pour que n’importe quel pseudo
 // (alphabets rares, symboles, emojis…) s’affiche, quelles que soient les polices installées sur le serveur.
@@ -37,9 +39,15 @@ try {
 
 export const canRender = () => !!sharp
 
+// Au plus `render.concurrency` rendus en même temps : plusieurs groupes qui jouent ensemble ne font pas exploser la mémoire
+const renders = makeLimiter(config.render.concurrency)
+export const renderStats = renders.stats
+export const renderIdle = renders.idle
+if (sharp && typeof sharp.cache === 'function') sharp.cache({ memory: 32, files: 0, items: 20 })
+
 export const svgToJpeg = (svg) => {
   if (!sharp) throw new Error('le module « sharp » n’est pas installé')
-  return sharp(Buffer.from(svg)).jpeg({ quality: 92 }).toBuffer()
+  return renders.run(() => sharp(Buffer.from(svg)).jpeg({ quality: 92 }).toBuffer())
 }
 
 // Envoie une image avec légende. Si l’image est impossible (sharp absent, erreur de rendu, envoi refusé),

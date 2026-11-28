@@ -9,6 +9,7 @@ import { onLobbyText } from './lobby.js'
 import { onClueText } from './clues.js'
 import { onVoteText } from './vote.js'
 import { onGuessText } from './verdict.js'
+import { countTalk } from '../behavior.js'
 
 export { openLobby, joinLobby, beginGame, setFormat } from './lobby.js'
 export { startVote } from './vote.js'
@@ -22,6 +23,7 @@ const TEXT_HANDLERS = {
 
 // Message de groupe (hors commande) → gestionnaire de la phase en cours, s’il y en a un
 export const handleGameText = async (chat, me, text, mentioned, g) => {
+  if (g && (g.phase === 'discuss' || g.phase === 'vote')) countTalk(g, me) // pour le surnom « Bavard » / « Silencieux »
   const handler = g && TEXT_HANDLERS[g.phase]
   if (handler) return handler(g, { chat, me, text, mentioned })
 }

@@ -12,6 +12,7 @@ import { setupGame } from '../round.js'
 import { activePackIds } from '../words.js'
 import { distributeRoles } from './distribution.js'
 import { count, pl, impostersRule } from '../wording.js'
+import { host } from '../voice.js'
 
 const P = config.prefix
 const { minPlayers, maxPlayers, lobbySeconds } = config.game
@@ -45,7 +46,7 @@ export const openLobby = async (key, me, modeId) => {
   const packs = activePackIds(key)
   await say(
     key,
-    `${header('lobby')}🕵️ *L’IMPOSTEUR*\nUn mot secret est donné à tous les joueurs… sauf à l’imposteur (ou aux imposteurs : ${impostersRule()}, en format 2) !\n\n` +
+    `${header('lobby')}🕵️ *L’IMPOSTEUR*\n${host('open')}\n\nUn mot secret est donné à tous les joueurs… sauf à l’imposteur (ou aux imposteurs : ${impostersRule()}, en format 2) !\n\n` +
       `🎮 Mode : ${mode.label}\n(changer : ${modeUsage(P)})\n` +
       `📦 Mots : ${packs.length ? packs.join(', ') : 'tous les packs'} (changer : *${P}imposteur packs*)\n\n` +
       `👥 Joueurs (1/${maxPlayers}) : ${tag(me.jid)}\n` +

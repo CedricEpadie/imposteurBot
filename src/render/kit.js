@@ -2,6 +2,7 @@
 // Toutes les images du bot sont construites avec ces fonctions, jamais avec du SVG « à la main ».
 import { esc } from '../core/utils.js'
 import { C, FONT, W, FOOTER_H } from './theme.js'
+import { activeTheme, THEMES, decor } from './seasonal.js'
 
 // Texte propre pour une image : retire le balisage WhatsApp et les emojis (absents de la police)
 export const plain = (s) =>
@@ -81,10 +82,13 @@ export const section = (y, label, accent = C.gold) =>
 // Gabarit commun : fond, cadre à la couleur d’accent, contenu, signature. `contentH` = hauteur utile (hors signature).
 export const canvas = (contentH, accent, body) => {
   const h = contentH + FOOTER_H
+  const theme = activeTheme() // Halloween, Noël : couleur du cadre et décor dans les marges
+  if (theme && accent === C.gold) accent = THEMES[theme].accent
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${h}" viewBox="0 0 ${W} ${h}">
   ${rect(0, 0, W, h, { r: 30, fill: C.bg })}
   ${rect(14, 14, W - 28, h - 28, { r: 22, fill: 'none', stroke: accent, sw: 3 })}
   ${body}
+  ${theme ? decor(theme, W, h) : ''}
   ${logoMark(W / 2 - 88, h - 52, 30, C.dim)}${t(W / 2 - 52, h - 30, 'L’IMPOSTEUR', { size: 18, weight: 'bold', fill: C.dim })}
 </svg>`
 }

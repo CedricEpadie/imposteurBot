@@ -6,7 +6,8 @@
 //   mot deviné            bonus de l’imposteur démasqué qui devine le mot
 import { config } from '../config.js'
 import { tag } from '../core/utils.js'
-import { isImposter, isAlive } from './players.js'
+import { isImposter, isAlive, alivePlayers } from './players.js'
+import { tallyVotes, statsOf, bump } from './behavior.js'
 import { count } from './wording.js'
 
 const S = config.scoring
@@ -19,6 +20,7 @@ export const pointsOf = (g, p) => g.ledger.filter((e) => e.p === p).reduce((n, e
 
 // Après un vote : +points aux civils qui ont accusé un imposteur
 export const scoreVotes = (g) => {
+  tallyVotes(g, { isImp: (p) => isImposter(g, p), alive: alivePlayers(g) })
   for (const [voter, target] of g.votes) {
     if (!isImposter(g, voter) && isImposter(g, target)) award(g, voter, S.rightVote, 'vote juste')
   }
@@ -40,6 +42,7 @@ export const mancheLines = (g) => {
 // winner = 'civils' | 'imposteur' ; viaGuess = l’imposteur a volé la victoire en devinant le mot.
 export const finalizeScores = (g, winner, viaGuess = false) => {
   const impWin = winner === 'imposteur'
+  if (impWin && viaGuess) bump(g, g.guesser, 'stolen')
   for (const p of g.players) {
     if (isImposter(g, p)) {
       if (impWin && (isAlive(g, p) || p === g.guesser)) award(g, p, S.imposterWin, 'imposteur gagnant')
@@ -55,6 +58,7 @@ export const finalizeScores = (g, winner, viaGuess = false) => {
     role: isImposter(g, p) ? 'imposteur' : 'civil',
     won: isImposter(g, p) ? impWin : !impWin,
     points: pointsOf(g, p),
+    ...statsOf(g, p),
   }))
 }
 

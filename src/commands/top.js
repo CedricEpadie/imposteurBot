@@ -1,11 +1,11 @@
-// /imposteur top : classement de la session et classement général du groupe
+// /imposteur top : classement de la SAISON (le mois en cours) et de la session ; « top general » : classement de tous les temps
 import { say } from '../whatsapp/messenger.js'
 import { sayVisual } from '../render/svg.js'
 import { rankingSvg } from '../render/ranking.js'
 import { config } from '../config.js'
 import { count } from '../game/wording.js'
 import { tag } from '../core/utils.js'
-import { sessionRanking, overallRanking } from '../storage/scores.js'
+import { sessionRanking, overallRanking, seasonRanking, seasonKey, seasonLabel } from '../storage/scores.js'
 
 const MEDALS = ['🥇', '🥈', '🥉']
 const lines = (rows) =>
@@ -14,20 +14,29 @@ const lines = (rows) =>
 export default {
   name: 'top',
   shortcut: true,
-  async run({ chat }) {
+  async run({ chat, rest }) {
+    const P = config.prefix
+    const general = ['general', 'général', 'tout', 'all'].includes(rest[0])
+    const key = seasonKey()
+    const label = seasonLabel(key)
     const session = sessionRanking(chat, 5)
-    const overall = overallRanking(chat, 10)
-    if (!overall.length) return say(chat, 'Aucun point pour l’instant. Lancez une partie ! 🕵️')
-    const text =
-      `🏆 *Classement de l’imposteur*\n\n` +
-      (session.length ? `📊 *Session en cours*\n${lines(session).join('\n')}\n\n` : '') +
-      `🌍 *Général*\n${lines(overall).join('\n')}`
-    // Podium en image (général + session) ; texte complet avec @mentions si l’image est impossible
+    const rows = general ? overallRanking(chat, 10) : seasonRanking(chat, key, 10)
+
+    if (!rows.length) {
+      if (!general && overallRanking(chat, 1).length) {
+        return say(chat, `🆕 *Saison de ${label}* : personne n’a encore marqué ce mois-ci. Lancez une partie ! 🕵️\n(classement de tous les temps : *${P}imposteur top general*)`)
+      }
+      return say(chat, 'Aucun point pour l’instant. Lancez une partie ! 🕵️')
+    }
+    const head = general ? '🌍 *Classement de tous les temps*' : `🏆 *Saison de ${label}*`
+    const text = `${head}\n\n` + (session.length ? `📊 *Session en cours*\n${lines(session).join('\n')}\n\n` : '') + `${general ? '🌍 *Général*' : '🗓️ *Saison*'}\n${lines(rows).join('\n')}`
+    // Podium en image (saison ou général + session) ; texte complet avec @mentions si l’image est impossible
     await sayVisual(chat, {
-      svg: () => rankingSvg(overall, session),
-      caption: `🏆 *Classement du groupe* • ${config.prefix}imposteur stats : ton profil • ${config.prefix}imposteur : rejouer`,
+      svg: () =>
+        rankingSvg(rows, session, general ? { title: 'CLASSEMENT GÉNÉRAL', subtitle: 'Tous les temps' } : { title: 'CLASSEMENT', subtitle: `Saison de ${label}` }),
+      caption: `🏆 *Classement du groupe* — ${general ? 'tous les temps' : `saison de ${label}`}\n${P}imposteur top ${general ? '' : 'general : tous les temps • '}stats : ton profil • ${P}imposteur : rejouer`.replace('  ', ' '),
       fallback: text,
-      fallbackMentions: [...new Set([...session, ...overall].map((r) => r.jid))],
+      fallbackMentions: [...new Set([...session, ...rows].map((r) => r.jid))],
     })
   },
 }

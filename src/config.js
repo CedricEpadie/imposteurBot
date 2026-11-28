@@ -42,6 +42,15 @@ export const config = {
     backups: { keep: Number(env.BACKUP_KEEP ?? 7), everyHours: 24 },
   },
 
+  // Anti-spam : délai (en secondes) entre deux usages d'une même commande par un même joueur (les admins en sont dispensés)
+  cooldowns: { etat: 10, stats: 15, top: 20 },
+
+  // Thème saisonnier des images : auto (Halloween, Noël selon la date), ou noel / halloween / none pour forcer
+  theme: (env.THEME || 'auto').toLowerCase(),
+
+  // Rendu des images : nombre maximum de rendus simultanés (les autres attendent leur tour ; limite la mémoire)
+  render: { concurrency: Math.max(1, Number(env.RENDER_CONCURRENCY ?? 2) || 2) },
+
   // Numéros autorisés à utiliser les commandes admin (ajouter des mots, effacer les scores).
   // Le compte du bot lui-même est toujours admin.
   admins: (env.ADMIN_NUMBERS || '').split(',').map((s) => s.replace(/\D/g, '')).filter(Boolean),

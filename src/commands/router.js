@@ -1,6 +1,9 @@
 // Analyse un message commençant par le préfixe et l’aiguille vers la bonne commande.
 import { config } from '../config.js'
 import { say } from '../whatsapp/messenger.js'
+import { checkCooldown } from '../core/cooldown.js'
+import { isAdmin } from '../core/admin.js'
+import { num, tag } from '../core/utils.js'
 import { getGame } from '../game/store.js'
 import { hasId } from '../game/players.js'
 import { resolveMode } from '../game/modes/index.js'
@@ -35,6 +38,13 @@ export const handleCommand = async (chat, isGroup, me, text, mentioned = []) => 
   const key = chat
   const game = getGame(key)
   const ctx = { chat, isGroup, me, word, rest, raw, mentioned, game, isStarter: !!game && hasId(game.starter, me.ids) }
+
+  // Anti-spam : un délai par joueur et par commande pour celles qui fabriquent une image (admins dispensés)
+  const cooldown = command && config.cooldowns[command.name]
+  if (cooldown && !isAdmin(me)) {
+    const c = checkCooldown(`${chat}|${num(me.jid)}|${command.name}`, cooldown)
+    if (!c.ok) return c.warn ? say(chat, `⏳ ${tag(me.jid)}, doucement : *${P}${command.name}* sera de nouveau disponible dans ${c.wait} s.`, [me.jid]) : undefined
+  }
 
   if (command && command.groupOnly === false) return command.run(ctx) // utilisable aussi en privé
 

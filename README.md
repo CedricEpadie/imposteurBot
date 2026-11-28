@@ -263,3 +263,24 @@ Podium à la charte (`render/ranking.js`) : 1er au centre sur la marche la plus 
 - **Envoi des rôles** : pause aléatoire de 2 à 4 s entre deux envois (`dmDelayMinSeconds`, `dmDelayMaxSeconds`), 2 nouvelles tentatives par joueur (`dmRetries`), et le détail technique d'un échec va aux admins (`ADMIN_NUMBERS`) en message privé, plus au groupe.
 - **État des parties chiffré** (AES-256-GCM, `storage/crypto.js`) : le mot secret et les imposteurs ne sont plus lisibles dans la base. Clé : `STATE_KEY` du `.env` (recommandé) ou `DATA_DIR/.state-key` créé automatiquement (droits 600). Ne range pas la clé avec les sauvegardes. Les anciennes parties non chiffrées restent lisibles ; une partie illisible (clé changée) est ignorée.
 - **Sauvegarde de la base** (`storage/backup.js`) : un instantané cohérent par jour dans `DATA_DIR/backups` (`BACKUP_KEEP`, 7 par défaut, 0 = désactivé), fait aussi au démarrage si la dernière a plus de 24 h. `/imposteur sauvegarde` (admin) en fait une tout de suite. Restauration : arrêter le bot, `npm run restore` (liste), `npm run restore -- <fichier>` ; l'ancienne base est gardée en `.avant-restauration`.
+
+
+## Surnoms, titres, saisons, voix du bot (v1.10)
+
+- **Surnoms** (`src/game/titles.js`) : à partir de 5 parties, le bot donne à chaque joueur un surnom selon son style : *Le Silencieux*, *Le Bavard*,
+  *L’Accusateur* (accuse souvent à tort), *Le Fin Limier* (démasque souvent), *Le Caméléon*, *Le Voleur de mots*, *Le Suspect n°1*, *Le Pacifiste*, *La Tortue*.
+  Les compteurs (votes, accusations, messages, indices manqués…) sont enregistrés à chaque partie (migration 2 de la base : les anciennes parties comptent 0).
+- **Titres et défis** : paliers par famille (*Menteur né* → *Maître du bluff*, *Détective* → *Inspecteur* → *Commissaire*, *Voleur de mots*, *Increvable*, *Vétéran*,
+  *Champion de saison*…). La carte `/stats` affiche le surnom, les titres et le prochain défi avec sa progression ; la fin de partie annonce les nouveaux titres et surnoms.
+  Pour ajouter un titre : une ligne dans `TITLES`.
+- **Saisons** : `/imposteur top` montre le classement du **mois** (les compteurs repartent à zéro le 1er) ; `/imposteur top general` : tous les temps.
+  Le 1er du mois, le bot annonce le podium de la saison écoulée dans chaque groupe qui a joué et retient le champion (titre *Champion de saison*).
+  Les stats et les titres personnels ne sont jamais remis à zéro.
+- **Cartes de saison** : décor Halloween (15 oct → 2 nov) et Noël (1er déc → 6 janv) dans les marges des images ; `THEME=noel|halloween|none` pour forcer.
+- **Voix du bot** (`src/game/voice.js`) : ton de présentateur télé, phrases variées (jamais la même deux fois de suite) : ouverture, indices, débat, vote,
+  suspense avant le dépouillement, ironie quand l’imposteur est démasqué, commentaires de victoire. Les phrases sont des listes faciles à modifier ;
+  elles ne nomment jamais « l’imposteur » (accord singulier/pluriel) et utilisent un tirage séparé qui n’influence pas l’aléa du jeu.
+- **Anti-spam** : `/etat` (10 s), `/stats` (15 s), `/top` (20 s) par joueur ; un seul avertissement, puis silence ; les admins en sont dispensés (`config.cooldowns`).
+- **File de rendus** : au plus 2 images générées en même temps (`RENDER_CONCURRENCY`) : les pics de mémoire sont lissés quand plusieurs groupes jouent.
+- **Test de charge** : `npm run loadtest` fait jouer 10 groupes de 15 joueurs en parallèle avec le vrai rendu d’images
+  (`LOAD_GROUPS=30` pour plus). Résultat sur la machine de développement : 30 groupes terminent leur partie, mémoire maximale ≈ 300 Mo (limite du conteneur : 512 Mo).
