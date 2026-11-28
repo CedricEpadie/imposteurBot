@@ -1,6 +1,7 @@
 // 🕵️ L’IMPOSTEUR — bot WhatsApp autonome (Baileys), préfixe « / » par défaut
 //
 // Point d’entrée : tout le code vit dans src/ (voir « Architecture du code » dans le README).
+// test
 
 // La base SQLite intégrée à Node (node:sqlite) demande Node ≥ 22.13 : on vérifie avant de charger le reste
 const [major, minor] = process.versions.node.split('.').map(Number)
