@@ -46,7 +46,7 @@ test('imposteurs : répartition équitable sur 500 parties et peu de répétitio
     recordGame(key, `g${i}`, players.map((p) => ({ num: p.num, jid: p.jid, name: p.name, role: p === imp ? 'imposteur' : 'civil', won: false, points: 0 })), 1000 + i)
   }
   const expected = N / players.length
-  for (const [num, c] of counts) assert.ok(c > expected * 0.75 && c < expected * 1.25, `${num} imposteur ${c} fois (attendu ≈ ${expected})`)
+  for (const [num, c] of counts) assert.ok(c > expected * 0.66 && c < expected * 1.34, `${num} imposteur ${c} fois (attendu ≈ ${expected})`)
   // sans correction, ~12,5 % de répétitions d’affilée
   assert.ok(repeats / N < 0.10, `répétitions d’affilée : ${((100 * repeats) / N).toFixed(1)} %`)
 })

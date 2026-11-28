@@ -7,7 +7,7 @@ import { config } from '../../config.js'
 import { say, typing } from '../../whatsapp/messenger.js'
 import { sayVisual } from '../../render/svg.js'
 import { summarySvg } from '../../render/summary.js'
-import { tag, norm, sleep } from '../../core/utils.js'
+import { tag, stem, sleep } from '../../core/utils.js'
 import { getGame, isActive } from '../store.js'
 import { phaseTimer, stopTimers, endGame } from '../lifecycle.js'
 import { alivePlayers, aliveImposters, hasId, isImposter, jidsOf, labelOf } from '../players.js'
@@ -16,7 +16,7 @@ import { getMode } from '../modes/index.js'
 import { gameRecap } from '../recap.js'
 import { setupManche } from '../round.js'
 import { finalizeScores, gameLines } from '../scoring.js'
-import { recordGame, sessionRanking, playerStats } from '../../storage/scores.js'
+import { recordGame, playerStats } from '../../storage/scores.js'
 import { titlesOf, nicknameOf, MIN_GAMES } from '../titles.js'
 import { askTurn } from './clues.js'
 import { count, ie, roleReveal, stillThere } from '../wording.js'
@@ -27,7 +27,6 @@ const P = config.prefix
 const { guessSeconds, clueRounds, minPlayers } = config.game
 const { rounds } = config
 
-const MEDALS = ['🥇', '🥈', '🥉']
 
 // Un joueur qui n'a donné aucun de ses indices (temps écoulé à chaque tour) est éjecté de la partie :
 //  • imposteur → la partie s'arrête, les civils gagnent (+points de victoire, pas de dernière chance) ;
@@ -126,8 +125,9 @@ export const startGuess = (key, g, top) => {
 // Message du groupe pendant la dernière chance : seul l’imposteur démasqué est écouté, un seul essai
 export const onGuessText = async (g, { chat, me, text }) => {
   if (!hasId(g.guesser, me.ids)) return
-  const guess = norm(text)
-  const secret = norm(g.word)
+  // Singulier et pluriel sont équivalents (« mur » = « murs »), comme les accents et la casse
+  const guess = stem(text)
+  const secret = stem(g.word)
   const ok = guess.length >= 3 && (guess === secret || guess.includes(secret) || secret.split(' ').includes(guess))
   stopTimers(g)
   g.phase = 'verdict' // un seul essai
@@ -146,11 +146,11 @@ export const onGuessText = async (g, { chat, me, text }) => {
 }
 
 // Nouveaux titres et surnoms gagnés pendant la partie (comparaison avant / après l'enregistrement)
-const progress = (g, before) => {
+const progress = (g, before, after) => {
   const out = []
   for (const p of g.players) {
     const prev = before.get(p.num)
-    const now = playerStats(g.key, p.num)
+    const now = after.get(p.num)
     if (!now) continue
     const had = new Map(titlesOf(prev || { games: 0, impWins: 0, rightVotes: 0, stolen: 0, bestStreak: 0, civWins: 0 }).map((x) => [x.id, x.tier]))
     for (const ti of titlesOf(now)) if ((had.get(ti.id) || 0) < ti.tier) out.push(`🏅 ${tag(p.jid)} débloque le titre *${ti.name}* !`)
@@ -161,6 +161,12 @@ const progress = (g, before) => {
   return out
 }
 
+// Texte de repli : total de points des participants après la partie
+const totalsText = (g, totals) => {
+  const list = g.players.filter((p) => totals.has(p.num)).sort((a, b) => totals.get(b.num) - totals.get(a.num))
+  return list.length ? `\n\n📊 *Total des points*\n${list.map((p) => `▫️ ${tag(p.jid)} — ${count(totals.get(p.num), 'pt')}`).join('\n')}` : ''
+}
+
 // Fin de partie : points, classement, révélation des mots, récap. winner = 'civils' | 'imposteur'
 export const conclude = async (key, winner, reason, extraMentions = [], viaGuess = false) => {
   const g = getGame(key)
@@ -168,40 +174,33 @@ export const conclude = async (key, winner, reason, extraMentions = [], viaGuess
   const rows = finalizeScores(g, winner, viaGuess)
   endGame(g)
   let news = []
+  const totals = new Map() // numéro → total de points après la partie
   try {
     const before = new Map(rows.map((r) => [r.num, playerStats(key, r.num)]))
     recordGame(key, g.gameId, rows)
-    news = progress(g, before)
+    const after = new Map(rows.map((r) => [r.num, playerStats(key, r.num)]))
+    for (const [num, s] of after) if (s) totals.set(num, s.points)
+    news = progress(g, before, after)
   } catch (e) {
     console.error('[imposteur] enregistrement des scores impossible :', e.message)
   }
-
-  let session = []
-  try {
-    session = sessionRanking(key, 5)
-  } catch {}
 
   const pts = gameLines(g)
   const imps = g.imposters.map((p) => tag(p.jid)).join(', ')
   const mentions = [...g.imposters.map((p) => p.jid), ...jidsOf(g), ...extraMentions]
   const winLine = winner === 'civils' ? `🎉 *Les civils gagnent !*` : `🥷 *${ie(g, 'L’imposteur gagne', 'Les imposteurs gagnent')} !*`
   const bilan = `${winLine}\n${host(winner === 'civils' ? 'civilsWin' : 'imposterWin')}\n${reason}\n\n${ie(g, '🥷 Imposteur', '🥷 Imposteurs')} : ${imps}\n${getMode(g.mode).reveal(g)}`
-  const sessionText = session.length ? `\n\n📊 *Classement de la session*\n${session.map((r, i) => `${MEDALS[i] || '▫️'} ${tag(r.jid)} — ${count(r.points, 'pt')}`).join('\n')}` : ''
   const recap = `📜 *Récap des indices*\n${gameRecap(g)}`
   const newsText = news.length ? `\n\n${news.join('\n')}` : ''
   const commands = `${newsText}\n\n🏆 *${P}imposteur top* : classement • *${P}imposteur stats* : tes stats • Rejouer : *${P}imposteur*`
-  const nameOf = (r) => {
-    const p = g.players.find((x) => x.num === r.num)
-    return p ? labelOf(p) : `+${r.num}`
-  }
 
   await typing(key, 1500)
   // Bilan en image (vainqueur, imposteurs, mots, points, classement), puis les indices et les commandes en texte.
   // Sans image : tout le bilan tient en un seul message texte, comme avant.
   const { image } = await sayVisual(key, {
-    svg: () => summarySvg(g, winner, reason, session, nameOf),
+    svg: () => summarySvg(g, winner, reason, totals),
     caption: `🏁 *FIN DE PARTIE*\n\n${bilan}`,
-    fallback: `🏁 *FIN DE PARTIE*\n\n${bilan}` + (pts.length ? `\n\n🏅 *Points de la partie*\n${pts.join('\n')}` : '') + sessionText + `\n\n${recap}${commands}`,
+    fallback: `🏁 *FIN DE PARTIE*\n\n${bilan}` + (pts.length ? `\n\n🏅 *Points de la partie*\n${pts.join('\n')}` : '') + totalsText(g, totals) + `\n\n${recap}${commands}`,
     mentions,
   })
   if (image) return say(key, `${recap}${commands}`, jidsOf(g))

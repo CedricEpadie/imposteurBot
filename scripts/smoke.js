@@ -18,7 +18,7 @@ const rows = names.map((name, i) => ({ num: `1${i}`, name, points: 9 - i, wins: 
 const jobs = {
   carte: cardSvg({ title: 'TU ES CIVIL', color: '#3ddc97', category: 'Catégorie : Foot', big: 'Real Madrid', lines: ['Donne un indice en un mot.'] }),
   profil: profileSvg(stats, names[1]),
-  classement: rankingSvg(rows, rows.slice(0, 3)),
+  classement: rankingSvg(rows),
 }
 let bad = 0
 for (const [name, svg] of Object.entries(jobs)) {

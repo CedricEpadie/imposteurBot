@@ -109,3 +109,12 @@ test('comportement enregistré en base : votes, indices, accusations', async () 
   assert.equal(rows.filter((r) => r.right > 0).length, 3, 'les 3 civils ont voté juste')
   assert.ok(rows.find((r) => r.num === P[1]).talk >= 1)
 })
+
+// ── Pluriel : « mur » et « murs » sont le même mot ───────────────────────────────────────────────
+const { sameWord, stem } = await import('../src/core/utils.js')
+test('singulier et pluriel équivalents (accents et casse aussi)', () => {
+  for (const [a, b] of [['Mur', 'Murs'], ['murs', 'MUR'], ['Cheval', 'Chevaux'], ['Eau', 'Eaux'], ['Prix', 'prix'], ['Gâteau', 'gateaux'], ['Pont Neuf', 'ponts neufs'], ['Café', 'cafés']]) {
+    assert.ok(sameWord(a, b), `${a} = ${b} (${stem(a)} / ${stem(b)})`)
+  }
+  for (const [a, b] of [['Mur', 'Muret'], ['Mer', 'Mère'], ['Pont', 'Port'], ['Chat', 'Chats ou chien']]) assert.ok(!sameWord(a, b), `${a} ≠ ${b}`)
+})

@@ -3,7 +3,7 @@ import { config } from '../config.js'
 import { labelOf } from '../game/players.js'
 import { svgToJpeg } from './svg.js'
 import { C, W } from './theme.js'
-import { canvas, heading, t, rect, fit, plain, clip } from './kit.js'
+import { canvas, heading, t, rect, plain } from './kit.js'
 
 const ROW_H = 62
 
@@ -23,16 +23,15 @@ export const boardSvg = (g) => {
     .map((p, i) => {
       const y = 186 + i * ROW_H
       const dead = g.eliminated.has(p)
-      const name = clip(labelOf(p), 20)
       const cells = Array.from({ length: rounds }, (_, r) => {
         const c = clueOf(p, r + 1)
         const text = c ? c.text || '…' : '—'
-        return t(firstCol + colW * r + colW / 2, y + 40, text, { size: fit(text, colW - 16, 32, 18), weight: 'bold', fill: c?.text ? C.text : C.dim, anchor: 'middle' })
+        return t(firstCol + colW * r + colW / 2, y + 40, text, { size: 32, minSize: 18, maxW: colW - 16, weight: 'bold', fill: c?.text ? C.text : C.dim, anchor: 'middle' })
       }).join('')
       return `<g opacity="${dead ? 0.6 : 1}">
   ${rect(24, y, W - 48, ROW_H - 6, { r: 12, fill: i % 2 ? C.panel : C.panel2 })}
   ${t(44, y + 40, dead ? '✕' : alive.indexOf(p) + 1 + '.', { size: 26, fill: dead ? C.red : C.gold })}
-  ${t(96, y + 40, name, { size: fit(name, 290, 30, 20), deco: dead ? 'line-through' : '' })}
+  ${t(96, y + 40, labelOf(p), { size: 30, minSize: 20, maxW: firstCol - 96 - 14, deco: dead ? 'line-through' : '' })}
   ${cells}
 </g>`
     })

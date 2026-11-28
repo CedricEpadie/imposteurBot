@@ -17,6 +17,7 @@ export default function makeWASocket() {
     },
     async sendMessage(jid, content) {
       if (sock.failFor.has(jid)) throw new Error('not-acceptable ' + jid)
+      globalThis.__onSend?.(jid, content) // (outils de contrôle visuel : accès aux images brutes)
       const rec = { jid, content: JSON.parse(JSON.stringify(content, (k, v) => (v && v.type === 'Buffer' ? Buffer.from(v.data).toString() : v))) }
       sock.sent.push(rec)
       return { key: { id: 'M' + ++n, remoteJid: jid, fromMe: true }, messageTimestamp: 1700000000 }

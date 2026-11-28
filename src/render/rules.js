@@ -3,7 +3,7 @@ import { config } from '../config.js'
 import { impostersRule } from '../game/wording.js'
 import { listModes } from '../game/modes/index.js'
 import { C, W } from './theme.js'
-import { canvas, heading, section, t, rect, badge, pill, wrap } from './kit.js'
+import { canvas, heading, section, t, rect, badge, pill, wrapPx } from './kit.js'
 
 // Contenu des règles en données (texte brut), séparé du dessin pour être testé et modifié facilement
 export const rulesData = () => {
@@ -35,7 +35,7 @@ export const rulesSvg = () => {
   let body = heading('RÈGLES DU JEU', `${minPlayers} à ${maxPlayers} joueurs · ${impostersRule()}`, C.gold, { y: 80 })
 
   steps.forEach(([title, text], i) => {
-    const lines = wrap(text, 50)
+    const lines = wrapPx(text, W - 130 - 60, 24)
     const h = 62 + lines.length * 31
     body +=
       rect(36, y, W - 72, h, { r: 18, fill: C.panel }) +
@@ -58,7 +58,7 @@ export const rulesSvg = () => {
   y += 126
 
   for (const v of variants) {
-    const lines = wrap(v.text, 54)
+    const lines = wrapPx(v.text, W - 62 - 50, 23)
     const h = 56 + lines.length * 29
     body +=
       rect(36, y, W - 72, h, { r: 18, fill: C.panel, stroke: C.blue, sw: 3 }) +

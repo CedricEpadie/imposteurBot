@@ -35,6 +35,15 @@ export const norm = (s) =>
     .replace(/\s+/g, ' ')
     .trim()
 
+// Radical d'un mot pour comparer singulier et pluriel : « murs » = « mur », « chevaux » = « cheval », « eaux » = « eau »
+const stemWord = (w) => {
+  if (w.length > 4 && w.endsWith('aux') && !w.endsWith('eaux')) return w.slice(0, -3) + 'al'
+  return w.length > 3 && /[sx]$/.test(w) ? w.slice(0, -1) : w
+}
+export const stem = (s) => norm(s).split(' ').map(stemWord).join(' ')
+// Deux mots ou expressions sont-ils les mêmes, au singulier/pluriel, aux accents et à la casse près ?
+export const sameWord = (a, b) => stem(a) === stem(b)
+
 // Échappement XML (pour le SVG des cartes)
 export const esc = (s) =>
   String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')

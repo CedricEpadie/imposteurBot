@@ -4,7 +4,7 @@
 // et différent des indices déjà donnés par les autres joueurs.
 import { config } from '../../config.js'
 import { say } from '../../whatsapp/messenger.js'
-import { sleep, tag, norm } from '../../core/utils.js'
+import { sleep, tag, norm, stem, sameWord } from '../../core/utils.js'
 import { getGame, isActive } from '../store.js'
 import { phaseTimer, stopTimers } from '../lifecycle.js'
 import { hasId, jidsOf } from '../players.js'
@@ -115,12 +115,12 @@ export const onClueText = async (g, { chat, me, text }) => {
 
   // 2. Pas son propre mot secret
   const secret = getMode(g.mode).secretFor(g, t)
-  if (secret && (norm(clue) === norm(secret) || (norm(clue).length >= 4 && norm(secret).includes(norm(clue)) && !norm(secret).includes(' ')))) {
+  if (secret && (sameWord(clue, secret) || (norm(clue).length >= 4 && stem(secret).includes(stem(clue)) && !norm(secret).includes(' ')))) {
     return say(chat, `⛔ ${tag(t.jid)} : tu ne peux pas dire ton mot secret ! Trouve un autre indice (le temps continue de tourner).`, [t.jid])
   }
 
   // 3. Pas l’indice déjà donné par un autre joueur
-  const taken = g.clues.find((c) => c.p !== t && c.text && norm(c.text) === norm(clue))
+  const taken = g.clues.find((c) => c.p !== t && c.text && sameWord(c.text, clue))
   if (taken) {
     return say(chat, `⛔ ${tag(t.jid)} : « ${clue} » a déjà été donné par ${tag(taken.p.jid)} ! Trouve un autre indice (le temps continue de tourner).`, [t.jid, taken.p.jid])
   }

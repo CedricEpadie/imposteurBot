@@ -73,7 +73,7 @@ export const boot = async ({ env = {}, seed = 1 } = {}) => {
     const group = chat.endsWith('@g.us')
     const m = {
       key: group ? { remoteJid: chat, fromMe: false, participant: jid(from) } : { remoteJid: jid(from), fromMe: false },
-      pushName: `Joueur ${from.slice(-2)}`,
+      pushName: globalThis.__pushName?.(from) ?? `Joueur ${from.slice(-2)}`,
       message: mentions.length ? { extendedTextMessage: { text, contextInfo: { mentionedJid: mentions } } } : { conversation: text },
     }
     sock.ev.emit('messages.upsert', { messages: [m], type: 'notify' }).catch(() => {})

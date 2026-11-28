@@ -5,7 +5,7 @@ import { rankingSvg } from '../render/ranking.js'
 import { config } from '../config.js'
 import { count } from '../game/wording.js'
 import { tag } from '../core/utils.js'
-import { sessionRanking, overallRanking, seasonRanking, seasonKey, seasonLabel } from '../storage/scores.js'
+import { overallRanking, seasonRanking, seasonKey, seasonLabel } from '../storage/scores.js'
 
 const MEDALS = ['🥇', '🥈', '🥉']
 const lines = (rows) =>
@@ -19,7 +19,6 @@ export default {
     const general = ['general', 'général', 'tout', 'all'].includes(rest[0])
     const key = seasonKey()
     const label = seasonLabel(key)
-    const session = sessionRanking(chat, 5)
     const rows = general ? overallRanking(chat, 10) : seasonRanking(chat, key, 10)
 
     if (!rows.length) {
@@ -29,14 +28,14 @@ export default {
       return say(chat, 'Aucun point pour l’instant. Lancez une partie ! 🕵️')
     }
     const head = general ? '🌍 *Classement de tous les temps*' : `🏆 *Saison de ${label}*`
-    const text = `${head}\n\n` + (session.length ? `📊 *Session en cours*\n${lines(session).join('\n')}\n\n` : '') + `${general ? '🌍 *Général*' : '🗓️ *Saison*'}\n${lines(rows).join('\n')}`
-    // Podium en image (saison ou général + session) ; texte complet avec @mentions si l’image est impossible
+    const text = `${head}\n\n${lines(rows).join('\n')}`
+    // Podium en image (saison ou général) ; texte complet avec @mentions si l’image est impossible
     await sayVisual(chat, {
       svg: () =>
-        rankingSvg(rows, session, general ? { title: 'CLASSEMENT GÉNÉRAL', subtitle: 'Tous les temps' } : { title: 'CLASSEMENT', subtitle: `Saison de ${label}` }),
+        rankingSvg(rows, general ? { title: 'CLASSEMENT GÉNÉRAL', subtitle: 'Tous les temps' } : { title: 'CLASSEMENT', subtitle: `Saison de ${label}` }),
       caption: `🏆 *Classement du groupe* — ${general ? 'tous les temps' : `saison de ${label}`}\n${P}imposteur top ${general ? '' : 'general : tous les temps • '}stats : ton profil • ${P}imposteur : rejouer`.replace('  ', ' '),
       fallback: text,
-      fallbackMentions: [...new Set([...session, ...rows].map((r) => r.jid))],
+      fallbackMentions: rows.map((r) => r.jid),
     })
   },
 }

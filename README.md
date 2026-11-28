@@ -292,3 +292,14 @@ Un joueur qui ne donne **aucun** de ses indices (temps écoulé à chacun de ses
 - **civil** : il sort du jeu (ni vote ni accusation, aucun point de victoire) et la partie continue, sauf s'il ne reste plus assez de joueurs (les imposteurs gagnent).
 
 Le bot avertit après le premier indice manqué. Règle écrite dans `/aide`, dans l'image des règles et dans l'annonce du premier tour d'indices.
+
+
+## Textes et cartes (v1.10.2)
+
+- **Aucun texte ne déborde** : chaque texte d'image est mesuré avec les largeurs réelles de la police (`emWidth`), réduit jusqu'à une taille minimale, puis coupé par « … ».
+  Les listes de mots (raisons, règles, votants) passent à la ligne selon la largeur en pixels (`wrapPx`). Un mot secret trop long se met sur 2 ou 3 lignes.
+  Un test (`test/overflow.test.mjs`) vérifie le tableau, le dépouillement, le bilan, le classement et le profil avec des pseudos extrêmes.
+- **Plus de score de session** nulle part : ni dans le bilan, ni dans `/top` (saison et général seulement).
+- **Bilan de fin de partie** : pour chaque participant, les points de la partie (« PARTIE ») et son total de points (« TOTAL », tous les points du groupe).
+- **Singulier / pluriel** : la devinette de l'imposteur accepte « mur » pour « murs » (et l'inverse), « cheval / chevaux », « eau / eaux », sans tenir compte des accents ni de la casse.
+  Les indices suivent la même règle : donner le pluriel de son mot secret, ou répéter au pluriel l'indice d'un autre, est refusé.

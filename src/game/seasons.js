@@ -23,7 +23,7 @@ export const announceSeasons = async (now = new Date(Date.now())) => {
     recordChampion(group, key, rows[0].num)
     const podium = rows.slice(0, 3).map((r, i) => `${MEDALS[i]} ${tag(r.jid)} — ${count(r.points, 'pt')} • ${count(r.wins, 'victoire')}`)
     await sayVisual(group, {
-      svg: () => rankingSvg(rows, [], { title: `SAISON ${label.toUpperCase()}`, subtitle: 'Le podium de la saison écoulée' }),
+      svg: () => rankingSvg(rows, { title: `SAISON ${label.toUpperCase()}`, subtitle: 'Le podium de la saison écoulée' }),
       caption: `🏆 *Fin de la saison de ${label} !*\n\n👑 Champion : ${tag(rows[0].jid)}\n\n${podium.join('\n')}\n\n🆕 Une nouvelle saison commence : les compteurs du classement repartent à zéro (tes stats et tes titres restent). ${config.prefix}imposteur top : classement de la saison`,
       mentions: rows.slice(0, 3).map((r) => r.jid),
     })

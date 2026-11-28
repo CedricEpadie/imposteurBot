@@ -51,7 +51,7 @@ test('format 2 à 5 joueurs : on élimine jusqu’à 3 joueurs, les imposteurs g
   const end = b.last(/FIN DE PARTIE/)
   assert.match(end, /L’imposteur gagne/)
   assert.match(end, /Il ne reste que \*3\* joueurs/)
-  assert.match(b.image(/FIN DE PARTIE/), /POINTS DE LA PARTIE/, 'le bilan en image détaille les points')
+  assert.match(b.image(/FIN DE PARTIE/), />TOTAL</, 'le bilan en image détaille les points et les totaux')
 })
 
 test('format 2 : démasquer le dernier imposteur donne la dernière chance de deviner le mot', async () => {

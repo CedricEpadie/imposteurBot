@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { boot, startGame, playClues, voteFor, PL, G, jid } from './helpers.mjs'
 
 const b = await boot({ env: { ADMIN_NUMBERS: PL[0] } })
-const { playerStats, overallRanking, sessionRanking } = await import('../src/storage/scores.js')
+const { playerStats, overallRanking } = await import('../src/storage/scores.js')
 
 test('partie classique : les civils trouvent l’imposteur → points de vote juste + victoire', async () => {
   const { P, imposters, civils } = await startGame(b, { n: 4 })
@@ -17,8 +17,9 @@ test('partie classique : les civils trouvent l’imposteur → points de vote ju
   const end = b.last(/FIN DE PARTIE/)
   assert.match(end, /Les civils gagnent/)
   const svg = b.image(/FIN DE PARTIE/)
-  assert.match(svg, /POINTS DE LA PARTIE/)
-  assert.match(svg, /CLASSEMENT DE LA SESSION/)
+  assert.match(svg, />POINTS</)
+  assert.match(svg, />TOTAL</)
+  assert.doesNotMatch(svg, /SESSION/)
   assert.match(svg, /LES CIVILS GAGNENT/)
   assert.ok(b.has(/Récap des indices/), 'les indices suivent en texte')
 
@@ -43,12 +44,11 @@ test('l’imposteur qui survit marque des points ; le classement cumule', async 
   const all = overallRanking(G, 10)
   assert.equal(all.length, 4)
   assert.ok(all[0].points >= all[all.length - 1].points, 'classement trié')
-  assert.ok(sessionRanking(G, 5).length > 0, 'session en cours')
 
   await b.send(G, PL[1], '/top')
   const top = b.image(/Classement du groupe/)
   assert.match(top, /CLASSEMENT/)
-  assert.match(top, /SESSION EN COURS/)
+  assert.doesNotMatch(top, /SESSION/)
   await b.send(G, PL[1], '/stats')
   const card = b.image(/Profil de/)
   assert.match(card, /PROFIL DE JOUEUR/)
