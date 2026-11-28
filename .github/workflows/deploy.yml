@@ -37,9 +37,16 @@ jobs:
             docker compose up -d --build
             echo "Attente de la sonde de santé (jusqu'à 3 min)…"
             for i in $(seq 1 18); do
-              s=$(docker inspect --format '{{.State.Health.Status}}' imposteur)
-              echo "  état : $s"
-              [ "$s" = healthy ] && exit 0
+              state=$(docker inspect --format '{{.State.Status}}' imposteur 2>/dev/null || echo "missing")
+              health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' imposteur 2>/dev/null || echo "unknown")
+              echo "  état conteneur : $state | santé : $health"
+              if [ "$health" = "healthy" ] || { [ "$health" = "none" ] && [ "$state" = "running" ]; }; then
+                exit 0
+              fi
+              if [ "$state" = "exited" ] || [ "$state" = "dead" ]; then
+                docker compose logs --tail 40
+                exit 1
+              fi
               sleep 10
             done
             docker compose logs --tail 40
